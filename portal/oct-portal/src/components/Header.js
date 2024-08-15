@@ -1,7 +1,7 @@
 function Header() {
   return (
     <header>
-      <h1>Oct Portal</h1>
+      <h1>OCT Portal</h1>
     </header>
   );
 }

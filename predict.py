@@ -11,18 +11,11 @@ app = Flask(__name__)
 model = load_model('InceptionV3_tuning.keras')
 
 
-def preprocess_image(image_path):
-    image_gen = ImageDataGenerator(rescale=1/255,
-                              shear_range=0.15,
-                              zoom_range=0.2,
-                              horizontal_flip=True,
-                               rotation_range=25,
-                              )
-    
-    img = load_img(image_path, target_size=(299, 299))
-    img_array = img_to_array(img)
-    img_array = np.expand_dims(img_array, axis=0)
-    img_array = image_gen.flow(img_array, batch_size=1)
+def preprocess_image(image):
+    image = image.resize((299, 299))  # Resize the image to the target size
+    img_array = img_to_array(image)  # Convert the image to a NumPy array
+    img_array = img_array / 255.0  # Normalize the image
+    img_array = np.expand_dims(img_array, axis=0)  # Add the batch dimension
     return img_array
 
 @app.route('/predict', methods=['POST'])
@@ -34,6 +27,7 @@ def predict():
     file  = request.files['file']
 
     try: 
+        print(f"File received: {file.filename}")  # Print file information
         image = Image.open(io.BytesIO(file.read()))
         processed_image = preprocess_image(image)
         prediction = model.predict(processed_image)

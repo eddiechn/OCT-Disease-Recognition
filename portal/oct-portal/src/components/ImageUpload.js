@@ -1,4 +1,6 @@
 import { useState } from "react";
+import Popup from './PopUp';
+
 
 function ImageUpload() {
     const [image, setImage] = useState(null);
@@ -17,6 +19,7 @@ function ImageUpload() {
         }
   
     };
+
 
     const handleAnalysis = async () => {
         if (!imageFile) {
@@ -39,6 +42,7 @@ function ImageUpload() {
         catch (error) {
             console.error('Error: ', error);
     }
+
 
 };
 
@@ -112,10 +116,11 @@ function ImageUpload() {
 
             {/* Display results here */}
             {result && (
-                <div style={{ marginTop: "10px", padding: "10px", maxWidth: "600px", width: "100%", textAlign: "center", marginLeft: "25%"}}>
-                    <p>AI detects : {result}</p>
+                <div style={{ marginTop: "20px",maxWidth: "600px", width: "100%", textAlign: "center", margin: "0 auto" }}>
+                    <p style={{ fontSize: "18px", fontWeight: "bold" }}>AI detects: {result}</p>
+                    <Popup />
                 </div>
-            )}
+)}
 
 
         </div>

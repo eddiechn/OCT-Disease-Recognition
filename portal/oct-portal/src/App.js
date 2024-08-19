@@ -6,9 +6,11 @@ import './App.css';
 
 function App() {
   return (
-    <div className="App">
+    <div className="App" style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
       <Header />
-      <ImageUpload />
+      <div style={{ flex: 1 }}>
+        <ImageUpload />
+      </div>
       <Footer />
 
     </div>

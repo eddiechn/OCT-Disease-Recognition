@@ -4,7 +4,7 @@ import Popup from 'reactjs-popup';
 import '../styles/PopUp.css';
 
 
-export default function PopUp() {
+export default function PopUp({message}) {
     return (
         <Popup trigger=
             {<button className='learn-more-btn'> 
@@ -21,7 +21,7 @@ export default function PopUp() {
                         <div className="modal-header"> AI Analysis Details </div>
                         <div className="modal-content">
                             {' '}
-                            The model has detected disease in the image. The disease is called <b>placeholder</b>. The model is 95% confident in its prediction.
+                            {message}
                             <br />
                             <br />
 
@@ -29,8 +29,8 @@ export default function PopUp() {
                             <br />
                             <button
                                 onClick={() => {
-                                    window.location.reload(); // Refreshes the page
-                                    close(); // Closes the modal
+                                    window.location.reload(); 
+                                    close(); 
                                 }}
                                 >
                                     Refresh Page

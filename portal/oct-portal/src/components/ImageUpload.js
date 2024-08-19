@@ -6,6 +6,8 @@ function ImageUpload() {
     const [image, setImage] = useState(null);
     const [imageFile, setImageFile] = useState(null);
     const [result, setResult] = useState(null);
+    const [accuracy, setAccuracy] = useState(null);
+    const [message, setMessage] = useState(null);
 
     const handleImageChange = (e) => {
         const file = e.target.files[0];
@@ -37,6 +39,8 @@ function ImageUpload() {
             const data = await response.json();
             console.log(data);
             setResult(data.class);
+            setAccuracy(data.accuracy);
+            setMessage(data.message);
     
         }
         catch (error) {
@@ -118,7 +122,7 @@ function ImageUpload() {
             {result && (
                 <div style={{ marginTop: "20px",maxWidth: "600px", width: "100%", textAlign: "center", margin: "0 auto" }}>
                     <p style={{ fontSize: "18px", fontWeight: "bold" }}>AI detects: {result}</p>
-                    <Popup />
+                    <Popup result={result} accuracy={accuracy} message={message} />
                 </div>
 )}
 

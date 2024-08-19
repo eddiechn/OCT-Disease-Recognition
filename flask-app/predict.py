@@ -33,10 +33,24 @@ def predict():
         processed_image = preprocess_image(image)
         prediction = model.predict(processed_image)
         predicted_class = np.argmax(prediction, axis=1)
+        predicted_probability = prediction[0][predicted_class]
 
-        class_label = ['CNV', 'DME', 'DRUSEN', 'NORMAL']
+        class_label = ['Choroidal neovascularization', 'Diabetic Macular Edema', 'Drusen', 'Normal']
 
-        return jsonify({'class': class_label[predicted_class[0]]}), 200
+        predicted_class_label = class_label[predicted_class[0]]
+
+        if predicted_class_label == 'Normal':
+            response_message = f"There are no signs of disease in the selected eye. The model is {round(float(predicted_probability) * 100, 2)}% confident in this prediction. There is no need to advance the patient's appointment."
+        else:
+            response_message = f"The model has identified the selected eye as having {class_label[predicted_class[0]]}. The model is {round(float(predicted_probability) * 100, 2)}% confident in this prediction."
+
+
+
+        return jsonify({'class': class_label[predicted_class[0]], 
+                        'accuracy': round(float(predicted_probability) * 100, 2),
+                        'message' : response_message}
+                       ), 200
+        
     
     except Exception as e:
         return jsonify({'error': str(e)}), 500

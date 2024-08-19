@@ -1,12 +1,13 @@
 from flask import Flask, request, jsonify
-import tensorflow as tf
-from tensorflow.keras.models import load_model
-from tensorflow.keras.preprocessing.image import load_img, ImageDataGenerator, img_to_array
+from flask_cors import CORS
+from tensorflow.keras.models import load_model # type: ignore
+from tensorflow.keras.preprocessing.image import load_img, ImageDataGenerator, img_to_array # type: ignore
 import numpy as np
 from PIL import Image
 import io
 
 app = Flask(__name__)
+CORS(app) #handle requests from other origins
 
 model = load_model('InceptionV3_tuning.keras')
 

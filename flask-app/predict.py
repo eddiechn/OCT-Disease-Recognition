@@ -9,7 +9,7 @@ import io
 app = Flask(__name__)
 CORS(app) #handle requests from other origins
 
-model = load_model('InceptionV3_tuning.keras')
+model = load_model('../InceptionV3_tuning.keras')
 
 
 def preprocess_image(image):
@@ -36,7 +36,7 @@ def predict():
 
         class_label = ['CNV', 'DME', 'DRUSEN', 'NORMAL']
 
-        return jsonify({'class': class_label[predicted_class[0]]})
+        return jsonify({'class': class_label[predicted_class[0]]}), 200
     
     except Exception as e:
         return jsonify({'error': str(e)}), 500

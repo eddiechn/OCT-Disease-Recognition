@@ -2,19 +2,45 @@ import { useState } from "react";
 
 function ImageUpload() {
     const [image, setImage] = useState(null);
+    const [imageFile, setImageFile] = useState(null);
+    const [result, setResult] = useState(null);
 
     const handleImageChange = (e) => {
         const file = e.target.files[0];
-        const reader = new FileReader();
-        reader.onloadend = () => {
-            setImage(reader.result);
-        };
-        reader.readAsDataURL(file);
+        if (file) {
+            setImageFile(file);
+            const reader = new FileReader();
+            reader.onloadend = () => {
+                setImage(reader.result);
+            };
+            reader.readAsDataURL(file);
+        }
+  
     };
 
-    const handleAnalysis = () => {
-        alert("Analysis started. Please wait a moment for the results.");
-    };
+    const handleAnalysis = async () => {
+        if (!imageFile) {
+            console.error("No image selected!");
+            return;
+        }
+        const fromData = new FormData();
+        fromData.append("file", imageFile);
+
+        try {
+            const response = await fetch("http://localhost:5000/predict", {
+                method: "POST",
+                body: fromData,
+            });
+            const data = await response.json();
+            console.log(data);
+            setResult(data.class);
+    
+        }
+        catch (error) {
+            console.error('Error: ', error);
+    }
+
+};
 
     return (
         <div style={{ textAlign: "center", margin: "20px", marginTop: "30px" }}>
@@ -55,7 +81,7 @@ function ImageUpload() {
             {/* Display the image if one is selected uaing the && 'and' operator*/}
             {image && (
                 <div style={{ marginTop: "20px", textAlign: "center"}}>
-                    <div style={{ display : "flex", flexDirection: "column", alignItems: "center"}} >
+                    <div style={{ display : "flex", flexDirection: "column", alignItems: "center", overflowY: "auto" }} >
                     <img
                         src={image}
                         alt="uploaded"
@@ -84,9 +110,17 @@ function ImageUpload() {
                 
             )}
 
+            {/* Display results here */}
+            {result && (
+                <div style={{ marginTop: "10px", padding: "10px", maxWidth: "600px", width: "100%", textAlign: "center", marginLeft: "25%"}}>
+                    <p>AI detects : {result}</p>
+                </div>
+            )}
+
 
         </div>
     );
+
 }
 
 export default ImageUpload;

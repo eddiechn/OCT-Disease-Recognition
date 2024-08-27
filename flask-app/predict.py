@@ -39,11 +39,11 @@ def predict():
 
         accuracy = round(float(predicted_probability) * 100, 2)
 
-        class_label = ['Choroidal neovascularization', 'Diabetic Macular Edema', 'Drusen', 'Normal']
+        class_label = ['Choroidal neovascularization' , 'Diabetic Macular Edema', 'Drusen', 'Normal']
         predicted_class_label = class_label[predicted_class[0]]
-
+  
         
-        if accuracy < 0.90: 
+        if accuracy < 90.0: 
             response_message = f"The model is not confident in its prediction. The model is {accuracy}% confident in this prediction. Please consult with a specialist."
             predicted_class_label= 'Unknown'
         elif predicted_class_label == 'Normal':

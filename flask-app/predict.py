@@ -13,6 +13,7 @@ model = load_model('../InceptionV3_tuning.keras')
 
 
 def preprocess_image(image):
+    image = image.convert('L')
     image = image.resize((299, 299))  # Resize the image to the target size
     img_array = img_to_array(image)  # Convert the image to a NumPy array
     img_array = img_array / 255.0  # Normalize the image
@@ -35,19 +36,26 @@ def predict():
         predicted_class = np.argmax(prediction, axis=1)
         predicted_probability = prediction[0][predicted_class]
 
-        class_label = ['Choroidal neovascularization', 'Diabetic Macular Edema', 'Drusen', 'Normal']
 
+        accuracy = round(float(predicted_probability) * 100, 2)
+
+        class_label = ['Choroidal neovascularization', 'Diabetic Macular Edema', 'Drusen', 'Normal']
         predicted_class_label = class_label[predicted_class[0]]
 
-        if predicted_class_label == 'Normal':
-            response_message = f"There are no signs of disease in the selected eye. The model is {round(float(predicted_probability) * 100, 2)}% confident in this prediction. There is no need to advance the patient's appointment."
+        
+        if accuracy < 0.90: 
+            response_message = f"The model is not confident in its prediction. The model is {accuracy}% confident in this prediction. Please consult with a specialist."
+            predicted_class_label= 'Unknown'
+        elif predicted_class_label == 'Normal':
+            response_message = f"There are no signs of disease in the selected eye. The model is {accuracy}% confident in this prediction. There is no need to advance the patient's appointment."
+
         else:
-            response_message = f"The model has identified the selected eye as having {class_label[predicted_class[0]]}. The model is {round(float(predicted_probability) * 100, 2)}% confident in this prediction."
+            response_message = f"The model has identified the selected eye as having {class_label[predicted_class[0]]}. The model is {accuracy}% confident in this prediction."
 
 
 
-        return jsonify({'class': class_label[predicted_class[0]], 
-                        'accuracy': round(float(predicted_probability) * 100, 2),
+        return jsonify({'class': predicted_class_label, 
+                        'accuracy': accuracy,
                         'message' : response_message}
                        ), 200
         

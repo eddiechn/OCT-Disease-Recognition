@@ -44,13 +44,13 @@ def predict():
   
         
         if accuracy < 90.0: 
-            response_message = f"The model is not confident in its prediction. The model is {accuracy}% confident in this prediction. Please consult with a specialist."
+            response_message = f"The model is not confident in its prediction. The model is {accuracy}% confident in this prediction. Refer to form below."
             predicted_class_label= 'Unknown'
         elif predicted_class_label == 'Normal':
-            response_message = f"There are no signs of disease in the selected eye. The model is {accuracy}% confident in this prediction. There is no need to advance the patient's appointment."
+            response_message = f"There are no signs of disease in the selected eye. The model is {accuracy}% confident in this prediction. Refer to form below."
 
         else:
-            response_message = f"The model has identified the selected eye as having {class_label[predicted_class[0]]}. The model is {accuracy}% confident in this prediction."
+            response_message = f"The model has identified the selected eye as having {class_label[predicted_class[0]]}. The model is {accuracy}% confident in this prediction. Refer to form below."
 
 
 

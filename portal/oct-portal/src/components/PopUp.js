@@ -15,7 +15,7 @@ export default function PopUp({message, result}) {
     const [recommendation, setRecommendation] = React.useState('');
 
     useEffect(() => { 
-        if (result && result.toLowerCase() != 'normal') {
+        if (result && result.toLowerCase() !== 'normal') {
             setCriteria((prev) => ({ ...prev, eyeConditions: 'yes' }));
         }
     }, [result]);   

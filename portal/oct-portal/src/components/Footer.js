@@ -1,5 +1,3 @@
-
-
 function Footer()  {
     return (
         <footer style={footerStyle}>
@@ -23,5 +21,7 @@ const footerStyle = {
     backgroundColor: "#A6D3FB",
     fontSize: "15px"
 }
+
+
 
 export default Footer;

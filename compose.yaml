@@ -1,0 +1,20 @@
+services:
+  flask-backend:
+    build: ./flask-app          # Build context is the flask-app directory
+    ports:
+      - "5000:5000"             # Map port 5000 on host to port 5000 in container
+    volumes:
+      - ./flask-app:/flask-app  # Mount the flask-app folder inside the container
+    working_dir: /flask-app      # Set the working directory inside the container
+    environment:
+      - MODEL_PATH=/flask-app/models/inceptionV3_tuning.keras
+    depends_on:
+      - react-frontend          # Ensure Flask starts after React if they depend on each other
+
+  react-frontend:
+    build: ./portal/oct-portal   # Build context is the React frontend folder
+    ports:
+      - "3000:3000"             # Map port 3000 on host to port 3000 in container
+    volumes:
+      - ./portal/oct-portal:/portal/oct-portal # Mount the React folder inside the container
+    working_dir: /portal/oct-portal  # Set the working directory inside the container

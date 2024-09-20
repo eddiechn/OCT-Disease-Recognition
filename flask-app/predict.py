@@ -5,11 +5,15 @@ from tensorflow.keras.preprocessing.image import load_img, ImageDataGenerator, i
 import numpy as np
 from PIL import Image
 import io
+import os
+
+MODEL_PATH = os.getenv('MODEL_PATH')
+
 
 app = Flask(__name__)
 CORS(app) #handle requests from other origins
 
-model = load_model('../InceptionV3_tuning.keras')
+model = load_model('./models/InceptionV3_tuning.keras')
 
 
 def preprocess_image(image):

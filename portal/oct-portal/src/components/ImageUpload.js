@@ -104,7 +104,6 @@ function ImageUpload() {
                             display: "inline-block",
                             fontWeight: "bold",
                             borderRadius: "8px",
-                            color: "#fff",
                             border: "none",
                             cursor: "pointer"
                         }}

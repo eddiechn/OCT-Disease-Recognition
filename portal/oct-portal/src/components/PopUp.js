@@ -1,7 +1,6 @@
 import React, { useEffect } from 'react';
 import Popup from 'reactjs-popup';
 
-import '../styles/PopUp.css';
 
 
 export default function PopUp({message, result}) {

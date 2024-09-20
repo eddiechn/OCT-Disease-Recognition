@@ -1,17 +1,52 @@
-import React from 'react';
-import ReactDOM from 'react-dom/client';
-import './index.css';
-import App from './App';
-import reportWebVitals from './reportWebVitals';
+import * as React from "react";
+import { createRoot } from "react-dom/client";
+import {
+  createBrowserRouter,
+  RouterProvider,
+  Route,
+  Link,
+  Outlet,
+} from "react-router-dom";
 
-const root = ReactDOM.createRoot(document.getElementById('root'));
-root.render(
-  <React.StrictMode>
-    <App />
-  </React.StrictMode>
+import Results from "./routes/Results";
+import Home from "./routes/Home";
+import Settings from "./routes/Settings";
+import NavBar from "./components/NavBar";
+
+
+// Layout component with Navbar, Outlet for dynamic content, and Footer
+const AppLayout = () => (
+  <>
+    <NavBar />
+    <main>
+      <Outlet /> {/* Render matching child routes here */}
+    </main>
+  </>
 );
 
-// If you want to start measuring performance in your app, pass a function
-// to log results (for example: reportWebVitals(console.log))
-// or send to an analytics endpoint. Learn more: https://bit.ly/CRA-vitals
-reportWebVitals();
+// Define routes using createBrowserRouter
+const router = createBrowserRouter([
+  {
+    path: "/", // Base layout route
+    element: <AppLayout />, // App layout with Navbar and Footer
+    children: [
+      {
+        path: "home", // Matches /home
+        element: <Home />,
+      },
+      {
+        path: "results", // Matches /results
+        element: <Results />,
+      },
+      {
+        path: "settings", // Matches /settings
+        element: <Settings />,
+      },
+    ],
+  },
+]);
+
+// Render the RouterProvider at the root of the app
+createRoot(document.getElementById("root")).render(
+  <RouterProvider router={router} />
+);

@@ -1,6 +1,6 @@
-import { useState } from "react";
-import Popup from './PopUp';
-
+import React, { useState } from "react";
+import '../styles/ImageUpload.css'; // External styles for better organization
+import { Link } from "react-router-dom";
 
 function ImageUpload() {
     const [image, setImage] = useState(null);
@@ -8,6 +8,8 @@ function ImageUpload() {
     const [result, setResult] = useState(null);
     const [accuracy, setAccuracy] = useState(null);
     const [message, setMessage] = useState(null);
+    const [isLoading, setIsLoading] = useState(false);
+    const [error, setError] = useState(null); // To handle errors
 
     const handleImageChange = (e) => {
         const file = e.target.files[0];
@@ -19,116 +21,99 @@ function ImageUpload() {
             };
             reader.readAsDataURL(file);
         }
-  
     };
-
 
     const handleAnalysis = async () => {
         if (!imageFile) {
-            console.error("No image selected!");
+            setError("Please select an image before analysis.");
             return;
         }
-        const fromData = new FormData();
-        fromData.append("file", imageFile);
+        setIsLoading(true);
+        const formData = new FormData();
+        formData.append("file", imageFile);
 
         try {
             const response = await fetch("http://localhost:5000/predict", {
                 method: "POST",
-                body: fromData,
+                body: formData,
             });
             const data = await response.json();
-            console.log(data);
             setResult(data.class);
             setAccuracy(data.accuracy);
             setMessage(data.message);
-    
+            setError(null); // Clear previous errors if any
+        } catch (error) {
+            setError('Error: Unable to process the image. Please try again.');
+        } finally {
+            setIsLoading(false); // Stop loading after completion
         }
-        catch (error) {
-            console.error('Error: ', error);
-    }
-
-
-};
+    };
 
     return (
-        <div style={{ textAlign: "center", margin: "20px", marginTop: "30px" }}>
-            <p style={{ fontSize: "24px", fontWeight: "bold" }}>
-               Upload your OCT scan for an AI-powered analysis. 
-            </p>
-            <p style={{ fontSize: "15px", color: "#666" }}>
-            Results are for educational use only and not a medical diagnosis.
-            </p>
-            {/* Hidden file input */}
-            <input
-                type="file"
-                accept="image/*"
-                onChange={handleImageChange}
-                id="file-upload"
-                style={{ display: "none" }}
-            />
+        <div className="upload-container">
+            <div className="upload-header">
+                <h1>Upload Your OCT Scan for AI Analysis</h1>
+                <p>Results are for educational use only and not a medical diagnosis.</p>
+            </div>
 
-            {/* Custom button styled as a big button */}
-            <label
-                htmlFor="file-upload"
-                style={{
-                    display: "inline-block",
-                    padding: "20px 40px",
-                    backgroundColor: "#007bff",
-                    color: "#fff",
-                    fontSize: "18px",
-                    borderRadius: "8px",
-                    cursor: "pointer",
-                    fontWeight: "bold",
-                    transition: "background-color 0.3s",
-                    marginTop: "10px"
-                }}
-            >
-                Upload Image
-            </label>
-
-            {/* Display the image if one is selected uaing the && 'and' operator*/}
-            {image && (
-                <div style={{ marginTop: "20px", textAlign: "center"}}>
-                    <div style={{ display : "flex", flexDirection: "column", alignItems: "center", overflowY: "auto" }} >
-                    <img
-                        src={image}
-                        alt="uploaded"
-                        style={{ width: "100%", height: "30%", maxWidth: "600px", maxHeight: "300px" }}
+            <div className="upload-content">
+                <div className="upload-left">
+                    {/* Upload button */}
+                    <input
+                        type="file"
+                        accept="image/*"
+                        onChange={handleImageChange}
+                        id="file-upload"
+                        className="file-input"
                     />
-                    <button
-                        style={{
-                            marginTop: "20px",
-                            padding: "10px 20px",
-                            backgroundColor: "#007bff",
-                            color: "#fff",
-                            display: "inline-block",
-                            fontWeight: "bold",
-                            borderRadius: "8px",
-                            border: "none",
-                            cursor: "pointer"
-                        }}
+                    <label htmlFor="file-upload" className={image ? "upload-button" : 'centered-button'}>
+                        Upload Image
+                    </label>
 
-                        onClick={handleAnalysis}
-                        >
-                        Start AI Analysis
-                    </button>
+                    {/* Display an error message if any */}
+                    {error && <div className="error-message">{error}</div>}
+
+                    {/* Result section and analysis button */}
+                    {image && (
+                        <div className="result-box">
+                            <button className="analysis-button" onClick={handleAnalysis}>
+                                {isLoading ? "Analyzing..." : "Start AI Analysis"}
+                            </button>
+
+                            {result && (
+                                <div className="result-content">
+                                    <p><strong>AI detects:</strong> {result}</p>
+                                    <p><strong>Accuracy:</strong> {accuracy}</p>
+                                </div>
+                            )}
+
+                            {/* Conditionally show the "Learn More" link after analysis */}
+                            {result && (
+                                <Link
+                                    to="/results"
+                                    className="upload-button"
+                                    state={{ result }}  // Passing result as state
+                                >
+                                    Learn More
+                                </Link>
+                            )}
+                        </div>
+                    )}
+                </div>
+
+                {/* Image preview on the right side */}
+                {image && (
+                    <div className="image-result-container">
+                        <img
+                            src={image}
+                            alt="Uploaded"
+                            className="uploaded-image"
+                        />
                     </div>
-                </div>
-                
-            )}
-
-            {/* Display results here */}
-            {result && (
-                <div style={{ marginTop: "20px",maxWidth: "600px", width: "100%", textAlign: "center", margin: "0 auto" }}>
-                    <p style={{ fontSize: "18px", fontWeight: "bold" }}>AI detects: {result}</p>
-                    <Popup result={result} accuracy={accuracy} message={message} />
-                </div>
-)}
-
-
+                )}
+            </div>
         </div>
     );
-
 }
 
 export default ImageUpload;

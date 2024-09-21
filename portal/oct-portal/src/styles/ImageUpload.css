@@ -67,6 +67,7 @@
     justify-content: center;  /* Horizontally center */
     align-items: center;      /* Vertically center */
     height: 100%;
+    width: 100%;
 }
 
 .centered-button {
@@ -81,6 +82,11 @@
     text-align: center;
     transition: background-color 0.3s;
     justify-items: center;
+    width : 100%;
+}
+
+.centered-button p {
+    margin: auto;
 }
 .centered-button:hover {
     background-color: #0056b3;
@@ -131,4 +137,8 @@
     height: auto;
     border: 2px solid #ddd;
     border-radius: 8px;
+}
+
+.result-content {
+    margin-top: 30px;
 }

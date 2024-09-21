@@ -6,6 +6,7 @@ function Home() {
         <div className="home">
             <div>
                 <h1>OCT Portal</h1>
+                <br />
                 <ImageUpload />
             </div>
         </div>

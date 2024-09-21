@@ -57,7 +57,7 @@ function ImageUpload() {
             </div>
 
             <div className="upload-content">
-                <div className="upload-left">
+                <div className={image ? "upload-left": 'centered-button-container'}>
                     {/* Upload button */}
                     <input
                         type="file"
@@ -67,7 +67,7 @@ function ImageUpload() {
                         className="file-input"
                     />
                     <label htmlFor="file-upload" className={image ? "upload-button" : 'centered-button'}>
-                        Upload Image
+                        <p>Upload Image</p>
                     </label>
 
                     {/* Display an error message if any */}
@@ -79,6 +79,8 @@ function ImageUpload() {
                             <button className="analysis-button" onClick={handleAnalysis}>
                                 {isLoading ? "Analyzing..." : "Start AI Analysis"}
                             </button>
+
+                            
 
                             {result && (
                                 <div className="result-content">

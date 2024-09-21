@@ -118,18 +118,6 @@ export default function AnalysisDetails() {
                             </select>
                         </div>
                         <div>
-                            <label>Eye Conditions: </label>
-                            <select
-                                name="eyeConditions"
-                                value={criteria.eyeConditions}
-                                onChange={handleInputChange}
-                            >
-                                <option value="">Select</option>
-                                <option value="yes">Yes</option>
-                                <option value="no">No</option>
-                            </select>
-                        </div>
-                        <div>
                             <label>Pain: </label>
                             <select
                                 name="pain"
@@ -182,6 +170,8 @@ export default function AnalysisDetails() {
                         <button type="submit" className='button'>Evaluate</button>
                     </form>
                 </div>
+
+
 
                 {/* Right side: Appointment and Recommendation */}
                 <div className="recommendation">

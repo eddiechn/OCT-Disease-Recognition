@@ -118,6 +118,46 @@ def add_appointment():
     except Exception as e:
         print(e)
         return jsonify({'error': str(e)}), 500
+    
+@app.route('/stats', methods=['GET'])
+def stats():
+    try:
+        conn = psycopg2.connect(
+            dbname ="oct_disease", 
+            user="eddie",
+            password="ed123456",
+            host="localhost", 
+            port="5432",
+        )
+
+        cursor = conn.cursor()
+        
+        select_query = """
+            SELECT * FROM appointments
+        """
+        cursor.execute(select_query)
+        data = cursor.fetchall()
+
+        cursor.close()
+        conn.close()
+
+        total_saved_days = sum([row[2] for row in data])
+        total_patients = len(data)
+        average_saved_days = total_saved_days / total_patients if total_patients > 0 else 0
+        average_percentage_saved = sum([row[3] for row in data]) / total_patients if total_patients > 0 else 0
+
+        return jsonify(
+            {
+                'totalDaysSaved': total_saved_days,
+                'totalAppointments': total_patients,
+                'avgPercentageSaved': round(average_percentage_saved, 2)
+            }
+        ), 200
+
+    except Exception as e:
+        print(e)
+        return jsonify({'error': str(e)}), 500
+
 
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0')

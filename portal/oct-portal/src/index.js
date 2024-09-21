@@ -10,7 +10,7 @@ import {
 
 import Results from "./routes/Results";
 import Home from "./routes/Home";
-import Settings from "./routes/Settings";
+import Stats from "./routes/Stats";
 import NavBar from "./components/NavBar";
 
 
@@ -19,8 +19,9 @@ const AppLayout = () => (
   <>
     <NavBar />
     <main>
-      <Outlet /> {/* Render matching child routes here */}
+      <Outlet /> Render matching child routes here
     </main>
+    
   </>
 );
 
@@ -39,8 +40,8 @@ const router = createBrowserRouter([
         element: <Results />,
       },
       {
-        path: "settings", // Matches /settings
-        element: <Settings />,
+        path: "stats", // 
+        element: <Stats />,
       },
     ],
   },

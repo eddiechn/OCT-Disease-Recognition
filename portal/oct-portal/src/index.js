@@ -19,9 +19,9 @@ const AppLayout = () => (
   <>
     <NavBar />
     <main>
-      <Outlet /> Render matching child routes here
+      <Outlet /> 
     </main>
-    
+
   </>
 );
 

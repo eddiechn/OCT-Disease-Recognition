@@ -94,7 +94,7 @@ function ImageUpload() {
                                 <Link
                                     to="/results"
                                     className="upload-button"
-                                    state={{ result }}  // Passing result as state
+                                    state={{ result, message }}  // Passing result as state
                                 >
                                     Learn More
                                 </Link>

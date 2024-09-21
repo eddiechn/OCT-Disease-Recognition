@@ -7,7 +7,7 @@ import { Link } from 'react-router-dom';
 export default function AnalysisDetails() {
     // Retrieve the state passed from the previous page (e.g., ImageUpload)
     const location = useLocation();
-    const { result } = location.state || {};  // Default to an empty object if no state
+    const { result, message } = location.state || {};  // Default to an empty object if no state
 
     const [criteria, setCriteria] = useState({
         recentSurgery: '',
@@ -25,13 +25,20 @@ export default function AnalysisDetails() {
     const [newDate, setNewDate] = useState('');
     const [daysSaved, setDaysSaved] = useState(null);
     const [percentageSaved, setPercentageSaved] = useState(null);
-    const [message, setMessage] = useState('');
+    const [alert, setAlert] = useState('');
+    const [eyeConditions, setEyeConditions] = useState('');
+
 
     // Automatically set the "eyeConditions" criteria if the result is not 'normal'
     useEffect(() => {
         if (result && result.toLowerCase() !== 'normal') {
             setCriteria((prev) => ({ ...prev, eyeConditions: 'yes' }));
+            setEyeConditions(result);
+         } 
+        else {
+             setEyeConditions('normal');
         }
+        
     }, [result]);
 
     const handleInputChange = (e) => {
@@ -67,7 +74,7 @@ export default function AnalysisDetails() {
 
         // Check if both dates are selected
         if (!originalDate || !newDate) {
-            setMessage('Please select both dates.');
+            setAlert('Please select both dates.');
             return;
         }
 
@@ -81,10 +88,10 @@ export default function AnalysisDetails() {
             // Set the response values
             setDaysSaved(response.data.days_saved);
             setPercentageSaved(response.data.percentage_saved);
-            setMessage('Appointment dates saved to SQL database successfully!');
+            setAlert('Appointment dates saved to SQL database successfully!');
         } catch (error) {
             console.error('Error submitting data:', error);
-            setMessage('Error saving appointment data to SQL database.');
+            setAlert('Error saving appointment data to SQL database.');
         }
     };
 
@@ -95,9 +102,9 @@ export default function AnalysisDetails() {
             
             {/* Disease Detected Box */}
             {result && (
-                <div className="disease-box">
+                <div className={eyeConditions.toLowerCase() === "normal" ? "normalbox" : "disease-box"}>
                     <h2>Disease Detected:</h2>
-                    <p>{result}</p> {/* Display the detected disease */}
+                    <p>{message}</p> {/* Display the detected disease */}
                 </div>
             )}
 
@@ -218,8 +225,8 @@ export default function AnalysisDetails() {
                         </div>
                     )}
 
-                    {/* Display message */}
-                    {message && <p>{message}</p>}
+                    {/* Display alert */}
+                    {alert && <p>{alert}</p>}
 
                     <br />
                     <b>Go back to Home Page</b>

@@ -10,7 +10,7 @@ import datetime
 import psycopg2
 
 # Load model from the environment variable path or default location
-MODEL_PATH = os.getenv('MODEL_PATH', './models/InceptionV3_tuning.keras')
+MODEL_PATH = os.getenv('MODEL_PATH', './models/oct_model.h5')
 
 app = Flask(__name__)
 CORS(app)  # Enable CORS for cross-origin requests
@@ -118,6 +118,9 @@ def add_appointment():
     except Exception as e:
         print(e)
         return jsonify({'error': str(e)}), 500
+    
+
+# DATABASE CONNECTION
     
 @app.route('/stats', methods=['GET'])
 def stats():

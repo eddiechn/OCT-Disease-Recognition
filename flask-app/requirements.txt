@@ -13,4 +13,4 @@ Pillow==10.4.0
 # numpy for numerical computations
 numpy==1.24.3
 
-psycopg2==2.9.3
+psycopg2-binary==2.9.9

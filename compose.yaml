@@ -7,9 +7,9 @@ services:
       - ./flask-app:/flask-app  # Mount the flask-app folder inside the container
     working_dir: /flask-app      # Set the working directory inside the container
     environment:
-      - MODEL_PATH=/flask-app/models/octmodel
+      - MODEL_PATH=./models/octmodel
     depends_on:
-      - react-frontend          # Ensure Flask starts after React if they depend on each other
+      - react-frontend    
 
   react-frontend:
     build: ./portal/oct-portal   # Build context is the React frontend folder
@@ -18,6 +18,22 @@ services:
     volumes:
       - ./portal/oct-portal:/portal/oct-portal # Mount the React folder inside the container
     working_dir: /portal/oct-portal 
+
+
+  db:
+    image: postgres:15
+    restart: always
+    environment:
+      POSTGRES_USER: eddie          
+      POSTGRES_PASSWORD: ed123456   
+      POSTGRES_DB: oct_disease    
+    ports:
+      - "5432:5432"    
+    volumes:
+      - pg_data:/var/lib/postgresql/data 
+
+volumes:
+  pg_data:
 
   
 

@@ -7,15 +7,30 @@ import io
 import os
 import datetime
 import psycopg2
+import tensorflow as tf
 
-# Load model from the environment variable path or default location
-MODEL_PATH = os.getenv('MODEL_PATH', './models/octmodel')
+
+
+
+
 
 app = Flask(__name__)
 CORS(app)  # Enable CORS for cross-origin requests
 
-# Load the InceptionV3 model for predictions
-model = tf.keras.layers.TFSMLayer("MODEL_PATH", call_endpoint="serving_default")
+# Load model from the environment variable path or default location
+# MODEL_PATH = os.getenv('MODEL_PATH', './models/octmodel')
+
+# layer = tf.keras.layers.TFSMLayer('./models/octmodel', call_endpoint='serving_default')
+# input_layer = tf.keras.Input(shape = (299, 299, 1)) 
+# outputs = layer(input_layer)
+# model = tf.keras.Model(input_layer, outputs)
+
+model = tf.keras.models.load_model('./models/InceptionV3_tuning.keras')
+
+
+
+
+
 
 # Image preprocessing for model input
 def preprocess_image(image):
@@ -31,6 +46,7 @@ def preprocess_image(image):
 def predict():
     if 'file' not in request.files:
         return jsonify({'error': 'No file provided'}), 400
+    
 
     file = request.files['file']
 
@@ -120,6 +136,9 @@ def add_appointment():
     
 
 # DATABASE CONNECTION
+
+
+DATABASE_URL = os.environ.get('DATABASE_URL', 'postgresql://eddie:ed123456@db:5432/oct_disease')
     
 @app.route('/stats', methods=['GET'])
 def stats():
@@ -128,7 +147,7 @@ def stats():
             dbname ="oct_disease", 
             user="eddie",
             password="ed123456",
-            host="localhost", 
+            host="db", 
             port="5432",
         )
 
@@ -145,7 +164,6 @@ def stats():
 
         total_saved_days = sum([row[2] for row in data])
         total_patients = len(data)
-        average_saved_days = total_saved_days / total_patients if total_patients > 0 else 0
         average_percentage_saved = sum([row[3] for row in data]) / total_patients if total_patients > 0 else 0
 
         return jsonify(

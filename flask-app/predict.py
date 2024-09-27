@@ -1,7 +1,6 @@
 from flask import Flask, request, jsonify
 from flask_cors import CORS
-from tensorflow.keras.models import load_model
-from tensorflow.keras.preprocessing.image import load_img, img_to_array
+from tensorflow.keras.preprocessing.image import img_to_array
 import numpy as np
 from PIL import Image
 import io
@@ -10,13 +9,13 @@ import datetime
 import psycopg2
 
 # Load model from the environment variable path or default location
-MODEL_PATH = os.getenv('MODEL_PATH', './models/oct_model.h5')
+MODEL_PATH = os.getenv('MODEL_PATH', './models/octmodel')
 
 app = Flask(__name__)
 CORS(app)  # Enable CORS for cross-origin requests
 
 # Load the InceptionV3 model for predictions
-model = load_model(MODEL_PATH)
+model = tf.keras.layers.TFSMLayer("MODEL_PATH", call_endpoint="serving_default")
 
 # Image preprocessing for model input
 def preprocess_image(image):

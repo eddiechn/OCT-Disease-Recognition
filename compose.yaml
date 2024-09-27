@@ -7,7 +7,7 @@ services:
       - ./flask-app:/flask-app  # Mount the flask-app folder inside the container
     working_dir: /flask-app      # Set the working directory inside the container
     environment:
-      - MODEL_PATH=/flask-app/models/oct_model.h5
+      - MODEL_PATH=/flask-app/models/octmodel
     depends_on:
       - react-frontend          # Ensure Flask starts after React if they depend on each other
 

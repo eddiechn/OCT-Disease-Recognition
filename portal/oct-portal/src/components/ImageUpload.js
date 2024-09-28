@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import '../styles/ImageUpload.css'; // External styles for better organization
+import '../styles/ImageUpload.css'; 
 import { Link } from "react-router-dom";
 
 function ImageUpload() {
@@ -9,7 +9,7 @@ function ImageUpload() {
     const [accuracy, setAccuracy] = useState(null);
     const [message, setMessage] = useState(null);
     const [isLoading, setIsLoading] = useState(false);
-    const [error, setError] = useState(null); // To handle errors
+    const [error, setError] = useState(null); 
 
     const handleImageChange = (e) => {
         const file = e.target.files[0];

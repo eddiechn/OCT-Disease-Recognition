@@ -10,10 +10,6 @@ import psycopg2
 import tensorflow as tf
 
 
-
-
-
-
 app = Flask(__name__)
 CORS(app)  # Enable CORS for cross-origin requests
 
@@ -26,10 +22,6 @@ CORS(app)  # Enable CORS for cross-origin requests
 # model = tf.keras.Model(input_layer, outputs)
 
 model = tf.keras.models.load_model('./models/InceptionV3_tuning.keras')
-
-
-
-
 
 
 # Image preprocessing for model input

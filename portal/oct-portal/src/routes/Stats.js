@@ -10,9 +10,8 @@ function Stats() {
         avgPercentageSaved: 0,
     });
 
-    // Fetch data from backend using GET method
     useEffect(() => {
-        axios.get('http://localhost:5000/stats') // Replace with your actual API endpoint
+        axios.get('http://localhost:5000/stats') 
             .then(response => {
                 const { totalDaysSaved, totalAppointments, avgPercentageSaved } = response.data;
                 setStats({

@@ -8,6 +8,7 @@ services:
     working_dir: /flask-app      # Set the working directory inside the container
     environment:
       - MODEL_PATH=./models/octmodel
+      - DATABASE_URL=postgresql://eddie:ed123456@db:5432/oct_disease
     depends_on:
       - react-frontend    
 

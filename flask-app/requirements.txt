@@ -4,8 +4,6 @@ Flask==3.0.3
 # Flask-CORS for handling cross-origin requests (correct version for Flask 3.x)
 Flask-Cors==4.0.1
 
-# TensorFlow (using the nightly build for cutting-edge features)
-tf-nightly
 
 # Pillow for image processing (correct for handling images)
 Pillow==10.4.0
@@ -15,3 +13,5 @@ numpy==1.24.3
 
 # psycopg2 for PostgreSQL database connection (binary version for ease of installation)
 psycopg2-binary==2.9.9
+
+tensorflow==2.17.0

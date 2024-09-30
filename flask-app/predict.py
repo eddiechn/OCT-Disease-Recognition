@@ -79,7 +79,10 @@ def test():
 
 
 
+DATABASE_URL = os.getenv('DATABASE_URL')
 
+def get_db_connection():
+    return psycopg2.connect(DATABASE_URL)
 
 # Route to save appointment details including days saved and percentage saved
 @app.route('/add_appointment', methods=['POST'])
@@ -94,14 +97,7 @@ def add_appointment():
         total_days = (original_date - datetime.date.today()).days
         percentage_saved = (days_saved / total_days) * 100 if total_days > 0 else 0
 
-        conn = psycopg2.connect(
-            dbname ="oct_disease", 
-            user="eddie",
-            password="ed123456",
-            host="localhost", 
-            port="5432",
-        )
-
+        conn = get_db_connection()
         cursor = conn.cursor()
         
         insert_query = """
@@ -135,14 +131,7 @@ DATABASE_URL = os.environ.get('DATABASE_URL', 'postgresql://eddie:ed123456@db:54
 @app.route('/stats', methods=['GET'])
 def stats():
     try:
-        conn = psycopg2.connect(
-            dbname ="oct_disease", 
-            user="eddie",
-            password="ed123456",
-            host="db", 
-            port="5432",
-        )
-
+        conn = get_db_connection()
         cursor = conn.cursor()
         
         select_query = """

@@ -14,11 +14,8 @@ InceptionV3_tuning.*/
 
 node_modules/
 
-
-*.h5
-
-*.pb
-
 *.index
 
 variables.*
+
+octvenv/

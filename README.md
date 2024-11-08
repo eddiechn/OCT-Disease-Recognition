@@ -56,7 +56,6 @@ The model achieved exceptional performance on the test dataset, demonstrating it
 | NORMAL    | 1.00      | 1.00   | 1.00     | 242     |
 
 **Overall Performance**:
-- **Accuracy**: 99.38%  
 - **Macro Average**: Precision 0.99, Recall 0.99, F1-Score 0.99  
 - **Weighted Average**: Precision 0.99, Recall 0.99, F1-Score 0.99  
 

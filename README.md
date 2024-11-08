@@ -60,6 +60,8 @@ The model achieved exceptional performance on the test dataset, demonstrating it
 - **Macro Average**: Precision 0.99, Recall 0.99, F1-Score 0.99  
 - **Weighted Average**: Precision 0.99, Recall 0.99, F1-Score 0.99  
 
-## Contact
+## Contact 
 
-You can 
+You can contact me using my information below: 
+
+- Eddie Chen : eddiechn12@gmail.com

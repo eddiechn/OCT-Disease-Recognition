@@ -12,7 +12,7 @@ Optical Coherence Tomography (OCT) is a widely used imaging technique in ophthal
 This project automates the analysis of OCT scans using deep learning, aiming to:
 
 - Classify retinal conditions like DME, CNV, Drusen, and Normal states.
-= Provide a reliable and quick second opinion for healthcare professionals, helping to reduce delays and enhance diagnostic accuracy.
+- Provide a reliable and quick second opinion for healthcare professionals, helping to reduce delays and enhance diagnostic accuracy.
 
 By combining my hands-on experience in healthcare with my technical expertise, this project represents a step toward bridging the gap between healthcare systems and innovative AI solutions to make tangible, impactful changes in patient care.
 

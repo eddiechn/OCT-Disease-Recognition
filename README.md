@@ -21,7 +21,7 @@ By combining my hands-on experience in healthcare with my technical expertise, t
 ## 💻 Tech Stack
 
 
-- **Programming Language**: Python
+- **Data Science**: Python
 - **Frameworks & Libraries**: 
   - TensorFlow: Deep Learning Framework  
   - OpenCV: Image Preprocessing  

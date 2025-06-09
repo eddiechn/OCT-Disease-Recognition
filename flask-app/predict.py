@@ -79,7 +79,8 @@ def test():
 
 
 
-DATABASE_URL = os.getenv('DATABASE_URL')
+
+DATABASE_URL = os.environ.get('DATABASE_URL', 'postgresql://eddie:ed123456@db:5432/oct_disease')
 
 def get_db_connection():
     return psycopg2.connect(DATABASE_URL)

@@ -11,10 +11,20 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Calendar } from "@/components/ui/calendar"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
-import { Upload, User, Stethoscope, CalendarIcon, AlertCircle, CheckCircle, Search, Clock } from "lucide-react"
+import {
+  Upload,
+  User,
+  Stethoscope,
+  CalendarIcon,
+  AlertCircle,
+  CheckCircle,
+  Search,
+  Clock,
+  PlusCircle,
+} from "lucide-react"
 import { format } from "date-fns"
 
-// Mock data types
+// Data interfaces
 interface Scan {
   id: string
   patientId: string
@@ -23,7 +33,6 @@ interface Scan {
   prediction: {
     condition: string
     confidence: number
-    severity: "Low" | "Medium" | "High"
   }
   doctorAssessment?: {
     notes: string
@@ -46,7 +55,7 @@ interface Patient {
 // Mock data
 const mockPatients: Patient[] = [
   {
-    id: "1",
+    id: "00001",
     name: "John Smith",
     age: 45,
     gender: "Male",
@@ -54,13 +63,12 @@ const mockPatients: Patient[] = [
     scans: [
       {
         id: "scan1",
-        patientId: "1",
+        patientId: "00001",
         imageUrl: "/placeholder.svg?height=300&width=300",
         uploadDate: "2024-01-15",
         prediction: {
           condition: "Pneumonia",
           confidence: 0.87,
-          severity: "Medium",
         },
         doctorAssessment: {
           notes: "Confirmed pneumonia in lower right lobe. Patient responding well to treatment.",
@@ -70,42 +78,6 @@ const mockPatients: Patient[] = [
         },
       },
     ],
-  },
-  {
-    id: "2",
-    name: "Sarah Davis",
-    age: 32,
-    gender: "Female",
-    currentAppointment: "2024-01-25",
-    scans: [
-      {
-        id: "scan2",
-        patientId: "2",
-        imageUrl: "/placeholder.svg?height=300&width=300",
-        uploadDate: "2024-01-16",
-        prediction: {
-          condition: "Normal",
-          confidence: 0.94,
-          severity: "Low",
-        },
-      },
-    ],
-  },
-  {
-    id: "3",
-    name: "Michael Johnson",
-    age: 58,
-    gender: "Male",
-    currentAppointment: "2024-01-22",
-    scans: [],
-  },
-  {
-    id: "4",
-    name: "Emily Brown",
-    age: 29,
-    gender: "Female",
-    currentAppointment: "2024-01-28",
-    scans: [],
   },
 ]
 
@@ -118,21 +90,25 @@ export default function MedicalClassificationApp() {
   const [newPatientName, setNewPatientName] = useState("")
   const [newPatientAge, setNewPatientAge] = useState("")
   const [newPatientGender, setNewPatientGender] = useState("")
+  const [newPatientId, setNewPatientId] = useState("")
   const [assessmentNotes, setAssessmentNotes] = useState("")
   const [correctedDiagnosis, setCorrectedDiagnosis] = useState("")
   const [newAppointmentDate, setNewAppointmentDate] = useState<Date>()
   const [showRescheduling, setShowRescheduling] = useState(false)
   const [isEditingAssessment, setIsEditingAssessment] = useState(false)
   const [isEditingPatient, setIsEditingPatient] = useState(false)
-  const [editPatientData, setEditPatientData] = useState({ name: "", age: "", gender: "" })
+  const [editPatientData, setEditPatientData] = useState({ id: "", name: "", age: "", gender: "" })
   const [showDeleteConfirm, setShowDeleteConfirm] = useState<string | null>(null)
+  const [showAddPatientModal, setShowAddPatientModal] = useState(false)
   const [reschedulingHistory, setReschedulingHistory] = useState<
     Array<{ patientId: string; daysSaved: number; date: string }>
   >([])
 
   // Filter patients based on search term
   const filteredPatients = patients.filter(
-    (patient) => patient.name.toLowerCase().includes(searchTerm.toLowerCase()) || patient.id.includes(searchTerm),
+    (patient) =>
+      patient.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      patient.id.toLowerCase().includes(searchTerm.toLowerCase()),
   )
 
   const handleImageUpload = (patientId: string, file: File) => {
@@ -186,8 +162,17 @@ export default function MedicalClassificationApp() {
   const addNewPatient = () => {
     if (!newPatientName.trim() || !newPatientAge || !newPatientGender) return
 
+    // Generate a patient ID if not provided
+    const patientId = newPatientId.trim() || `PT-${String(patients.length + 1).padStart(3, "0")}`
+
+    // Check if ID already exists
+    if (patients.some((p) => p.id === patientId)) {
+      alert("Patient ID already exists. Please use a different ID.")
+      return
+    }
+
     const newPatient: Patient = {
-      id: `patient_${Date.now()}`,
+      id: patientId,
       name: newPatientName,
       age: Number.parseInt(newPatientAge),
       gender: newPatientGender,
@@ -198,6 +183,8 @@ export default function MedicalClassificationApp() {
     setNewPatientName("")
     setNewPatientAge("")
     setNewPatientGender("")
+    setNewPatientId("")
+    setShowAddPatientModal(false)
   }
 
   const handleReschedule = () => {
@@ -233,6 +220,7 @@ export default function MedicalClassificationApp() {
 
   const handleEditPatient = (patient: Patient) => {
     setEditPatientData({
+      id: patient.id,
       name: patient.name,
       age: patient.age.toString(),
       gender: patient.gender,
@@ -243,11 +231,18 @@ export default function MedicalClassificationApp() {
   const savePatientEdit = () => {
     if (!selectedPatient || !editPatientData.name.trim() || !editPatientData.age || !editPatientData.gender) return
 
+    // Check if ID already exists and is different from current patient
+    if (editPatientData.id !== selectedPatient.id && patients.some((p) => p.id === editPatientData.id)) {
+      alert("Patient ID already exists. Please use a different ID.")
+      return
+    }
+
     setPatients((prev) =>
       prev.map((patient) =>
         patient.id === selectedPatient.id
           ? {
               ...patient,
+              id: editPatientData.id,
               name: editPatientData.name,
               age: Number.parseInt(editPatientData.age),
               gender: editPatientData.gender,
@@ -260,6 +255,7 @@ export default function MedicalClassificationApp() {
       prev
         ? {
             ...prev,
+            id: editPatientData.id,
             name: editPatientData.name,
             age: Number.parseInt(editPatientData.age),
             gender: editPatientData.gender,
@@ -268,7 +264,7 @@ export default function MedicalClassificationApp() {
     )
 
     setIsEditingPatient(false)
-    setEditPatientData({ name: "", age: "", gender: "" })
+    setEditPatientData({ id: "", name: "", age: "", gender: "" })
   }
 
   const deletePatient = (patientId: string) => {
@@ -343,14 +339,20 @@ export default function MedicalClassificationApp() {
         {/* Left Sidebar - Patient List */}
         <div className="w-80 bg-white border-r flex flex-col">
           <div className="p-4 border-b">
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-              <Input
-                placeholder="Search patients..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10"
-              />
+            <div className="flex items-center gap-2 mb-3">
+              <div className="relative flex-1">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+                <Input
+                  placeholder="Search patients..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="pl-10"
+                />
+              </div>
+              <Button size="icon" onClick={() => setShowAddPatientModal(true)}>
+                <PlusCircle className="h-5 w-5" />
+                <span className="sr-only">Add Patient</span>
+              </Button>
             </div>
           </div>
 
@@ -374,7 +376,7 @@ export default function MedicalClassificationApp() {
                       </div>
                       <div className="text-xs text-gray-600">
                         <p>
-                          {patient.age} years, {patient.gender}
+                          ID: {patient.id} • {patient.age} years, {patient.gender}
                         </p>
                         {patient.currentAppointment && (
                           <div className="flex items-center gap-1 mt-1">
@@ -389,6 +391,17 @@ export default function MedicalClassificationApp() {
               ))}
             </div>
           </div>
+
+          <div className="p-3 border-t">
+            <Button
+              variant="outline"
+              className="w-full flex items-center justify-center gap-2"
+              onClick={() => setShowAddPatientModal(true)}
+            >
+              <PlusCircle className="h-4 w-4" />
+              Add New Patient
+            </Button>
+          </div>
         </div>
 
         {/* Main Content */}
@@ -400,40 +413,71 @@ export default function MedicalClassificationApp() {
                   <div>
                     {isEditingPatient ? (
                       <div className="space-y-2">
-                        <Input
-                          value={editPatientData.name}
-                          onChange={(e) => setEditPatientData((prev) => ({ ...prev, name: e.target.value }))}
-                          placeholder="Patient name"
-                          className="text-2xl font-bold h-auto p-2"
-                        />
+                        <div className="grid grid-cols-2 gap-2">
+                          <div>
+                            <Label htmlFor="patient-id" className="text-sm">
+                              Patient ID
+                            </Label>
+                            <Input
+                              id="patient-id"
+                              value={editPatientData.id}
+                              onChange={(e) => setEditPatientData((prev) => ({ ...prev, id: e.target.value }))}
+                              placeholder="Patient ID"
+                              className="h-auto p-2"
+                            />
+                          </div>
+                          <div>
+                            <Label htmlFor="patient-name" className="text-sm">
+                              Patient Name
+                            </Label>
+                            <Input
+                              id="patient-name"
+                              value={editPatientData.name}
+                              onChange={(e) => setEditPatientData((prev) => ({ ...prev, name: e.target.value }))}
+                              placeholder="Patient name"
+                              className="h-auto p-2"
+                            />
+                          </div>
+                        </div>
                         <div className="flex gap-2">
-                          <Input
-                            type="number"
-                            value={editPatientData.age}
-                            onChange={(e) => setEditPatientData((prev) => ({ ...prev, age: e.target.value }))}
-                            placeholder="Age"
-                            className="w-20"
-                          />
-                          <Select
-                            value={editPatientData.gender}
-                            onValueChange={(value) => setEditPatientData((prev) => ({ ...prev, gender: value }))}
-                          >
-                            <SelectTrigger className="w-32">
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="Male">Male</SelectItem>
-                              <SelectItem value="Female">Female</SelectItem>
-                              <SelectItem value="Other">Other</SelectItem>
-                            </SelectContent>
-                          </Select>
+                          <div>
+                            <Label htmlFor="patient-age" className="text-sm">
+                              Age
+                            </Label>
+                            <Input
+                              id="patient-age"
+                              type="number"
+                              value={editPatientData.age}
+                              onChange={(e) => setEditPatientData((prev) => ({ ...prev, age: e.target.value }))}
+                              placeholder="Age"
+                              className="w-20"
+                            />
+                          </div>
+                          <div className="flex-1">
+                            <Label htmlFor="patient-gender" className="text-sm">
+                              Gender
+                            </Label>
+                            <Select
+                              value={editPatientData.gender}
+                              onValueChange={(value) => setEditPatientData((prev) => ({ ...prev, gender: value }))}
+                            >
+                              <SelectTrigger id="patient-gender">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="Male">Male</SelectItem>
+                                <SelectItem value="Female">Female</SelectItem>
+                                <SelectItem value="Other">Other</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
                         </div>
                       </div>
                     ) : (
                       <div>
                         <h2 className="text-2xl font-bold">{selectedPatient.name}</h2>
                         <p className="text-gray-600">
-                          {selectedPatient.age} years, {selectedPatient.gender}
+                          ID: {selectedPatient.id} • {selectedPatient.age} years, {selectedPatient.gender}
                         </p>
                       </div>
                     )}
@@ -448,7 +492,7 @@ export default function MedicalClassificationApp() {
                           variant="outline"
                           onClick={() => {
                             setIsEditingPatient(false)
-                            setEditPatientData({ name: "", age: "", gender: "" })
+                            setEditPatientData({ id: "", name: "", age: "", gender: "" })
                           }}
                           size="sm"
                         >
@@ -576,17 +620,7 @@ export default function MedicalClassificationApp() {
                                 <div className="space-y-1">
                                   <div className="flex items-center justify-between">
                                     <span className="font-medium">{scan.prediction.condition}</span>
-                                    <Badge
-                                      variant={
-                                        scan.prediction.severity === "High"
-                                          ? "destructive"
-                                          : scan.prediction.severity === "Medium"
-                                            ? "default"
-                                            : "secondary"
-                                      }
-                                    >
-                                      {scan.prediction.severity}
-                                    </Badge>
+
                                   </div>
                                   <div className="text-sm text-gray-600">
                                     Confidence: {(scan.prediction.confidence * 100).toFixed(1)}%
@@ -761,45 +795,76 @@ export default function MedicalClassificationApp() {
                   <p className="text-gray-500">
                     Choose a patient from the sidebar to view their details and manage scans.
                   </p>
-
-                  {/* Add New Patient Form */}
-                  <div className="mt-8 max-w-md mx-auto">
-                    <h4 className="font-semibold mb-4">Or Add New Patient</h4>
-                    <div className="space-y-4">
-                      <Input
-                        value={newPatientName}
-                        onChange={(e) => setNewPatientName(e.target.value)}
-                        placeholder="Patient name"
-                      />
-                      <div className="grid grid-cols-2 gap-2">
-                        <Input
-                          type="number"
-                          value={newPatientAge}
-                          onChange={(e) => setNewPatientAge(e.target.value)}
-                          placeholder="Age"
-                        />
-                        <Select value={newPatientGender} onValueChange={setNewPatientGender}>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Gender" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="Male">Male</SelectItem>
-                            <SelectItem value="Female">Female</SelectItem>
-                            <SelectItem value="Other">Other</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
-                      <Button onClick={addNewPatient} className="w-full">
-                        Add Patient
-                      </Button>
-                    </div>
-                  </div>
                 </CardContent>
               </Card>
             </div>
           )}
         </div>
       </div>
+
+      {/* Add Patient Modal */}
+      {showAddPatientModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <Card className="max-w-md w-full">
+            <CardHeader>
+              <CardTitle>Add New Patient</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                <div>
+                  <Label htmlFor="new-patient-id">Patient ID</Label>
+                  <Input
+                    id="new-patient-id"
+                    value={newPatientId}
+                    onChange={(e) => setNewPatientId(e.target.value)}
+                    placeholder="PT-XXX (optional, will auto-generate if empty)"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="new-patient-name">Patient Name</Label>
+                  <Input
+                    id="new-patient-name"
+                    value={newPatientName}
+                    onChange={(e) => setNewPatientName(e.target.value)}
+                    placeholder="Full name"
+                  />
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label htmlFor="new-patient-age">Age</Label>
+                    <Input
+                      id="new-patient-age"
+                      type="number"
+                      value={newPatientAge}
+                      onChange={(e) => setNewPatientAge(e.target.value)}
+                      placeholder="Age"
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="new-patient-gender">Gender</Label>
+                    <Select value={newPatientGender} onValueChange={setNewPatientGender}>
+                      <SelectTrigger id="new-patient-gender">
+                        <SelectValue placeholder="Select gender" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="Male">Male</SelectItem>
+                        <SelectItem value="Female">Female</SelectItem>
+                        <SelectItem value="Other">Other</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+                <div className="flex gap-2 justify-end mt-4">
+                  <Button variant="outline" onClick={() => setShowAddPatientModal(false)}>
+                    Cancel
+                  </Button>
+                  <Button onClick={addNewPatient}>Add Patient</Button>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
 
       {/* Scan Details Modal */}
       {selectedScan && (
@@ -828,20 +893,6 @@ export default function MedicalClassificationApp() {
                       <div className="flex items-center justify-between">
                         <span>Confidence:</span>
                         <span>{(selectedScan.prediction.confidence * 100).toFixed(1)}%</span>
-                      </div>
-                      <div className="flex items-center justify-between">
-                        <span>Severity:</span>
-                        <Badge
-                          variant={
-                            selectedScan.prediction.severity === "High"
-                              ? "destructive"
-                              : selectedScan.prediction.severity === "Medium"
-                                ? "default"
-                                : "secondary"
-                          }
-                        >
-                          {selectedScan.prediction.severity}
-                        </Badge>
                       </div>
                     </div>
                   </div>

@@ -12,6 +12,7 @@ import datetime
 import psycopg2
 from tensorflow.keras.applications.inception_v3 import InceptionV3
 from psycopg2.extras import RealDictCursor
+import uuid
 
 app = FastAPI()
 
@@ -170,13 +171,31 @@ async def delete_patient(patient_id: str):
         conn.close()
 
 
+@app.get("/scans", response_model=List[Scan])
+async def get_scans():
+    conn = get_db_connection()
+    cursor = conn.cursor(cursor_factory=RealDictCursor)
 
+    try:
+        cursor.execute("SELECT * FROM scans")
+        scans = cursor.fetchall()
+        return scans
+    finally:
+        cursor.close()
+        conn.close()
 
+@app.get("/patients/{patient_id}/scans", response_model=List[Scan])
+async def get_scans_by_patient(patient_id: str):
+    conn = get_db_connection()
+    cursor = conn.cursor(cursor_factory=RealDictCursor)
 
-
-
-
-
+    try:
+        cursor.execute("SELECT * FROM scans WHERE patient_id = %s", (str(patient_id),))
+        scans = cursor.fetchall()
+        return scans
+    finally:
+        cursor.close()
+        conn.close()
 
 
 @app.post("/predict")
@@ -194,24 +213,64 @@ async def predict(file: UploadFile = File(...)):
         class_labels = ['Choroidal Neovascularization', 'Diabetic Macular Edema', 'Drusen', 'Normal']
         predicted_class_label = class_labels[predicted_class]
 
-        # Customize the response based on prediction confidence
-        if accuracy < 90.0:
-            response_message = f"The model is not confident in its prediction. The model is {accuracy}% confident in this prediction."
-            predicted_class_label = 'Unknown'
-        elif predicted_class_label == 'Normal':
-            response_message = f"No signs of disease detected. The model is {accuracy}% confident in this prediction."
-        else:
-            response_message = f"The model detected {predicted_class_label} with {accuracy}% confidence."
-
+        os.makedirs('uploads', exist_ok=True)
+        image_filename = f"uploads_{uuid.uuid4()}.jpg"
+        image_path = os.path.join('uploads', image_filename)
+        image.save(image_path)
+        
         return {
-            'class': predicted_class_label,
-            'accuracy': accuracy,
-            'message': response_message
+            'predicted_class': predicted_class_label,
+            'predicted_probability': accuracy/100,
+            'image_url': image_path
         }
 
     except Exception as e:
         return {'error': str(e)}
     
+@app.post("/scans", response_model=Scan)
+async def create_scan(scan: ScanCreate):
+    conn = get_db_connection()
+    cursor = conn.cursor(cursor_factory=RealDictCursor)
+
+    try:
+        cursor.execute(
+            "INSERT INTO scans (patient_id, image_url, upload_date, prediction_condition, prediction_confidence) "
+            "VALUES (%s, %s, %s, %s, %s) RETURNING *",
+            (scan.patient_id, scan.image_url, datetime.now(), scan.prediction_condition, scan.prediction_confidence)
+        )
+        new_scan = cursor.fetchone()
+        conn.commit()
+        return new_scan
+    except psycopg2.Error as e:
+        conn.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        cursor.close()
+        conn.close()
+    
+@app.put("/scans/{scan_id}", response_model=Scan)
+async def update_scan(scan_id: str, scan: ScanCreate):
+    conn = get_db_connection()
+    cursor = conn.cursor(cursor_factory=RealDictCursor)
+
+    try:
+        cursor.execute(
+            "UPDATE scans SET patient_id = %s, image_url = %s, upload_date = %s, prediction_condition = %s, "
+            "prediction_confidence = %s WHERE id = %s RETURNING *",
+            (scan.patient_id, scan.image_url, scan.upload_date, scan.prediction_condition, scan.prediction_confidence, str(scan_id))
+        )
+        updated_scan = cursor.fetchone()
+        if not updated_scan:
+            raise HTTPException(status_code=404, detail="Scan not found")
+        conn.commit()
+        return updated_scan
+    except psycopg2.Error as e:
+        conn.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        cursor.close()
+        conn.close()
+
 
 @app.get("/test")
 def test():

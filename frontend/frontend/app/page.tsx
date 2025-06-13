@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -23,6 +23,7 @@ import {
   PlusCircle,
 } from "lucide-react"
 import { format } from "date-fns"
+import { scanAPI, patientAPI } from "../api/db"
 
 // Data interfaces
 interface Scan {
@@ -104,35 +105,133 @@ export default function MedicalClassificationApp() {
     Array<{ patientId: string; daysSaved: number; date: string }>
   >([])
 
-  // Filter patients based on search term
+  // Filter patients based on search term - search by name or ID
   const filteredPatients = patients.filter(
     (patient) =>
       patient.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       patient.id.toLowerCase().includes(searchTerm.toLowerCase()),
   )
 
-  const handleImageUpload = (patientId: string, file: File) => {
-    // Mock prediction generation
-    const mockPredictions = [
-      { condition: "Pneumonia", confidence: 0.85, severity: "Medium" as const },
-      { condition: "COVID-19", confidence: 0.72, severity: "High" as const },
-      { condition: "Normal", confidence: 0.91, severity: "Low" as const },
-      { condition: "Tuberculosis", confidence: 0.68, severity: "High" as const },
-    ]
+  const handleImageUpload = async (patientId: string, file: File) => {
+    try {
 
-    const randomPrediction = mockPredictions[Math.floor(Math.random() * mockPredictions.length)]
+      // Use the API to upload image, get prediction and create scan
+      const result = await scanAPI.uploadAndCreateScan(patientId, file)
 
-    const newScan: Scan = {
-      id: `scan_${Date.now()}`,
-      patientId,
-      imageUrl: URL.createObjectURL(file),
-      uploadDate: new Date().toISOString().split("T")[0],
-      prediction: randomPrediction,
+      // Create a new scan object for the UI
+      const newScan: Scan = {
+        id: result.scan.id,
+        patientId,
+        imageUrl: result.prediction.image_url,
+        uploadDate: new Date().toISOString().split("T")[0],
+        prediction: {
+          condition: result.prediction.predicted_class,
+          confidence: result.prediction.predicted_probability,
+        },
+      }
+
+      // Update local state
+      setPatients((prev) =>
+        prev.map((patient) =>
+          patient.id === patientId ? { ...patient, scans: [...patient.scans, newScan] } : patient,
+        ),
+      )
+
+      // Could show success message here
+    } catch (error) {
+      console.error("Error uploading image:", error)
+      // Could show error message to user here
+    }
+  }
+
+  // Add this effect to load patients from the backend when the component mounts
+  useEffect(() => {
+    async function loadPatients() {
+      try {
+        const patientsData = await patientAPI.getAllWithScans()
+        if (patientsData && patientsData.length > 0) {
+          // Map API response to local Patient and Scan 
+          const mappedPatients: Patient[] = patientsData.map((p: any) => ({
+            id: p.id,
+            name: p.name,
+            age: p.age,
+            gender: p.gender,
+            currentAppointment: p.current_appointment,
+            scans: (p.scans || []).map((s: any) => ({
+              id: s.id,
+              patientId: s.patient_id,
+              imageUrl: s.image_url,
+              uploadDate: s.upload_date,
+              prediction: {
+                condition: s.predicted_class,
+                confidence: s.predicted_probability,
+              },
+              doctorAssessment: s.doctor_assessment
+                ? {
+                    notes: s.doctor_assessment.notes,
+                    confirmed: s.doctor_assessment.confirmed,
+                    correctedDiagnosis: s.doctor_assessment.corrected_diagnosis,
+                    assessedBy: s.doctor_assessment.assessed_by,
+                    assessedDate: s.doctor_assessment.assessed_date,
+                  }
+                : undefined,
+            })),
+          }))
+          setPatients(mappedPatients)
+        }
+      } catch (error) {
+        console.error("Failed to load patients:", error)
+        // If API fails, we'll keep using the mock patients
+      }
     }
 
-    setPatients((prev) =>
-      prev.map((patient) => (patient.id === patientId ? { ...patient, scans: [...patient.scans, newScan] } : patient)),
-    )
+    loadPatients()
+  }, [])
+
+  // Update addNewPatient function to use the API
+  const addNewPatient = async () => {
+    if (!newPatientName.trim() || !newPatientAge || !newPatientGender) return
+
+    try {
+      // Generate a patient ID if not provided
+      const patientId = newPatientId.trim() || `PT-${String(patients.length + 1).padStart(3, "0")}`
+
+      // Check if ID already exists
+      if (patients.some((p) => p.id === patientId)) {
+        alert("Patient ID already exists. Please use a different ID.")
+        return
+      }
+
+      const newPatientData = {
+        id: patientId,
+        name: newPatientName,
+        age: Number.parseInt(newPatientAge),
+        gender: newPatientGender,
+        current_appointment: undefined,
+      }
+
+      // Create patient via API
+      await patientAPI.create(newPatientData)
+
+      // Update local state
+      const newPatient = {
+        id: patientId,
+        name: newPatientName,
+        age: Number.parseInt(newPatientAge),
+        gender: newPatientGender,
+        scans: [],
+      }
+
+      setPatients((prev) => [...prev, newPatient])
+      setNewPatientName("")
+      setNewPatientAge("")
+      setNewPatientGender("")
+      setNewPatientId("")
+      setShowAddPatientModal(false)
+    } catch (error) {
+      console.error("Failed to create patient:", error)
+      alert("Failed to create patient. Please try again.")
+    }
   }
 
   const handleDoctorAssessment = (scanId: string) => {
@@ -157,34 +256,6 @@ export default function MedicalClassificationApp() {
     setCorrectedDiagnosis("")
     setIsEditingAssessment(false)
     setSelectedScan(null)
-  }
-
-  const addNewPatient = () => {
-    if (!newPatientName.trim() || !newPatientAge || !newPatientGender) return
-
-    // Generate a patient ID if not provided
-    const patientId = newPatientId.trim() || `PT-${String(patients.length + 1).padStart(3, "0")}`
-
-    // Check if ID already exists
-    if (patients.some((p) => p.id === patientId)) {
-      alert("Patient ID already exists. Please use a different ID.")
-      return
-    }
-
-    const newPatient: Patient = {
-      id: patientId,
-      name: newPatientName,
-      age: Number.parseInt(newPatientAge),
-      gender: newPatientGender,
-      scans: [],
-    }
-
-    setPatients((prev) => [...prev, newPatient])
-    setNewPatientName("")
-    setNewPatientAge("")
-    setNewPatientGender("")
-    setNewPatientId("")
-    setShowAddPatientModal(false)
   }
 
   const handleReschedule = () => {
@@ -219,6 +290,7 @@ export default function MedicalClassificationApp() {
   }
 
   const handleEditPatient = (patient: Patient) => {
+
     setEditPatientData({
       id: patient.id,
       name: patient.name,
@@ -228,7 +300,7 @@ export default function MedicalClassificationApp() {
     setIsEditingPatient(true)
   }
 
-  const savePatientEdit = () => {
+  const savePatientEdit = async () => {
     if (!selectedPatient || !editPatientData.name.trim() || !editPatientData.age || !editPatientData.gender) return
 
     // Check if ID already exists and is different from current patient
@@ -237,6 +309,17 @@ export default function MedicalClassificationApp() {
       return
     }
 
+    try {
+      await patientAPI.update(editPatientData.id, {
+        id: editPatientData.id,
+        name: editPatientData.name,
+        age: Number.parseInt(editPatientData.age),
+        gender: editPatientData.gender, 
+        current_appointment: selectedPatient.currentAppointment,
+        
+      })
+
+    // local state update
     setPatients((prev) =>
       prev.map((patient) =>
         patient.id === selectedPatient.id
@@ -251,28 +334,40 @@ export default function MedicalClassificationApp() {
       ),
     )
 
-    setSelectedPatient((prev) =>
-      prev
-        ? {
-            ...prev,
-            id: editPatientData.id,
-            name: editPatientData.name,
-            age: Number.parseInt(editPatientData.age),
-            gender: editPatientData.gender,
-          }
-        : null,
-    )
+    // setSelectedPatient((prev) =>
+    //   prev
+    //     ? {
+    //         ...prev,
+    //         id: editPatientData.id,
+    //         name: editPatientData.name,
+    //         age: Number.parseInt(editPatientData.age),
+    //         gender: editPatientData.gender,
+    //       }
+    //     : null,
+    // )
 
     setIsEditingPatient(false)
     setEditPatientData({ id: "", name: "", age: "", gender: "" })
+  } catch (error) {
+      console.error("Failed to update patient:", error)
+      alert("Failed to update patient. Please try again.")
+    }
+
   }
 
-  const deletePatient = (patientId: string) => {
-    setPatients((prev) => prev.filter((patient) => patient.id !== patientId))
-    if (selectedPatient?.id === patientId) {
-      setSelectedPatient(null)
-    }
-    setShowDeleteConfirm(null)
+  const deletePatient = async (patientId: string) => {
+    try {
+      await patientAPI.delete(patientId)
+    
+      setPatients((prev) => prev.filter((patient) => patient.id !== patientId)) // removes local state by creating a new array without the deleted patient
+      if (selectedPatient?.id === patientId) {
+        setSelectedPatient(null)
+      }
+      setShowDeleteConfirm(null)
+      } catch (error) {
+        console.error("Failed to delete patient:", error)
+        alert("Failed to delete patient. Please try again.")
+      }
   }
 
   const calculateStats = () => {
@@ -620,7 +715,6 @@ export default function MedicalClassificationApp() {
                                 <div className="space-y-1">
                                   <div className="flex items-center justify-between">
                                     <span className="font-medium">{scan.prediction.condition}</span>
-
                                   </div>
                                   <div className="text-sm text-gray-600">
                                     Confidence: {(scan.prediction.confidence * 100).toFixed(1)}%

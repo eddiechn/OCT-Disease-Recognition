@@ -227,8 +227,8 @@ async def predict(file: UploadFile = File(...)):
     except Exception as e:
         return {'error': str(e)}
     
-@app.post("/scans", response_model=Scan)
-async def create_scan(scan: ScanCreate):
+@app.post("/scans/{patient_id}", response_model=Scan)
+async def create_scan(patient_id: str, scan: ScanCreate):
     conn = get_db_connection()
     cursor = conn.cursor(cursor_factory=RealDictCursor)
 
@@ -236,7 +236,7 @@ async def create_scan(scan: ScanCreate):
         cursor.execute(
             "INSERT INTO scans (patient_id, image_url, upload_date, prediction_condition, prediction_confidence) "
             "VALUES (%s, %s, %s, %s, %s) RETURNING *",
-            (scan.patient_id, scan.image_url, datetime.now(), scan.prediction_condition, scan.prediction_confidence)
+            (patient_id, scan.image_url, datetime.now(), scan.prediction_condition, scan.prediction_confidence)
         )
         new_scan = cursor.fetchone()
         conn.commit()
@@ -275,5 +275,3 @@ async def update_scan(scan_id: str, scan: ScanCreate):
 @app.get("/test")
 def test():
     return {'message': 'success'}
-    
-

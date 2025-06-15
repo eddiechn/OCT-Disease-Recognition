@@ -197,7 +197,6 @@ async def get_scans_by_patient(patient_id: str):
         cursor.close()
         conn.close()
 
-
 @app.post("/predict")
 async def predict(file: UploadFile = File(...)):
     try:

@@ -24,6 +24,14 @@ import {
 } from "lucide-react"
 import { format } from "date-fns"
 import { scanAPI, patientAPI } from "../api/db"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
 
 // Data interfaces
 interface Scan {
@@ -53,38 +61,10 @@ interface Patient {
   scans: Scan[]
 }
 
-// Mock data
-const mockPatients: Patient[] = [
-  {
-    id: "00001",
-    name: "John Smith",
-    age: 45,
-    gender: "Male",
-    currentAppointment: "2024-01-20",
-    scans: [
-      {
-        id: "scan1",
-        patientId: "00001",
-        imageUrl: "/placeholder.svg?height=300&width=300",
-        uploadDate: "2024-01-15",
-        prediction: {
-          condition: "Pneumonia",
-          confidence: 0.87,
-        },
-        doctorAssessment: {
-          notes: "Confirmed pneumonia in lower right lobe. Patient responding well to treatment.",
-          confirmed: true,
-          assessedBy: "Dr. Johnson",
-          assessedDate: "2024-01-15",
-        },
-      },
-    ],
-  },
-]
 
 export default function MedicalClassificationApp() {
   const [currentRole, setCurrentRole] = useState<"Doctor" | "Technician">("Technician")
-  const [patients, setPatients] = useState<Patient[]>(mockPatients)
+  const [patients, setPatients] = useState<Patient[]>([])
   const [selectedPatient, setSelectedPatient] = useState<Patient | null>(null)
   const [selectedScan, setSelectedScan] = useState<Scan | null>(null)
   const [searchTerm, setSearchTerm] = useState("")
@@ -104,6 +84,7 @@ export default function MedicalClassificationApp() {
   const [reschedulingHistory, setReschedulingHistory] = useState<
     Array<{ patientId: string; daysSaved: number; date: string }>
   >([])
+  const [showStatsModal, setShowStatsModal] = useState(false)
 
   // Filter patients based on search term - search by name or ID
   const filteredPatients = patients.filter(
@@ -258,35 +239,57 @@ export default function MedicalClassificationApp() {
     setSelectedScan(null)
   }
 
-  const handleReschedule = () => {
+  const handleReschedule = async () => {
     if (!selectedPatient || !newAppointmentDate) return
 
-    const daysSaved = selectedPatient.currentAppointment
-      ? calculateDaysSaved(selectedPatient.currentAppointment, newAppointmentDate)
-      : 0
+    try {
 
-    // Track rescheduling history
-    if (daysSaved !== 0) {
-      setReschedulingHistory((prev) => [
-        ...prev,
-        {
-          patientId: selectedPatient.id,
-          daysSaved,
-          date: new Date().toISOString().split("T")[0],
-        },
-      ])
+      await patientAPI.update(selectedPatient.id, {
+        id: selectedPatient.id,
+        name: selectedPatient.name,
+        age: selectedPatient.age,
+        gender: selectedPatient.gender, 
+        current_appointment: format(newAppointmentDate, "yyyy-MM-dd"),
+      })
+
+
+      const daysSaved = selectedPatient.currentAppointment 
+          ? calculateDaysSaved(selectedPatient.currentAppointment, newAppointmentDate): 0
+
+
+        // Track rescheduling history
+        if (daysSaved !== 0) {
+          setReschedulingHistory((prev) => [
+            ...prev,
+            {
+              patientId: selectedPatient.id,
+              daysSaved,
+              date: new Date().toISOString().split("T")[0],
+            },
+          ])
+        }
+
+
+        // local state update
+        setPatients((prev) =>
+          prev.map((patient) =>
+            patient.id === selectedPatient.id
+              ? { ...patient, currentAppointment: format(newAppointmentDate, "yyyy-MM-dd") }
+              : patient,
+          ),
+        )
+
+        setNewAppointmentDate(undefined)
+        setShowRescheduling(false)
+
+
+    }
+    catch (error) {
+      console.error("Failed to reschedule appointment:", error)
+      alert("Failed to reschedule appointment. Please try again.")
     }
 
-    setPatients((prev) =>
-      prev.map((patient) =>
-        patient.id === selectedPatient.id
-          ? { ...patient, currentAppointment: format(newAppointmentDate, "yyyy-MM-dd") }
-          : patient,
-      ),
-    )
 
-    setNewAppointmentDate(undefined)
-    setShowRescheduling(false)
   }
 
   const handleEditPatient = (patient: Patient) => {
@@ -334,17 +337,17 @@ export default function MedicalClassificationApp() {
       ),
     )
 
-    // setSelectedPatient((prev) =>
-    //   prev
-    //     ? {
-    //         ...prev,
-    //         id: editPatientData.id,
-    //         name: editPatientData.name,
-    //         age: Number.parseInt(editPatientData.age),
-    //         gender: editPatientData.gender,
-    //       }
-    //     : null,
-    // )
+    setSelectedPatient((prev) =>
+      prev
+        ? {
+            ...prev,
+            id: editPatientData.id,
+            name: editPatientData.name,
+            age: Number.parseInt(editPatientData.age),
+            gender: editPatientData.gender,
+          }
+        : null,
+    )
 
     setIsEditingPatient(false)
     setEditPatientData({ id: "", name: "", age: "", gender: "" })
@@ -402,6 +405,7 @@ export default function MedicalClassificationApp() {
       <div className="bg-white border-b px-6 py-4">
         <div className="flex items-center justify-between">
           <h1 className="text-2xl font-bold text-gray-900">Medical Image Classification</h1>
+
           <div className="flex items-center gap-4">
             <Label htmlFor="role-select">Current Role:</Label>
             <Select value={currentRole} onValueChange={(value: "Doctor" | "Technician") => setCurrentRole(value)}>
@@ -426,6 +430,9 @@ export default function MedicalClassificationApp() {
             <Badge variant={currentRole === "Doctor" ? "default" : "secondary"} className="text-sm">
               {currentRole === "Doctor" ? "Full Access" : "Upload & View Only"}
             </Badge>
+            <Button variant="outline" onClick={() => setShowStatsModal(true)} size="sm">
+              Show Statistics
+            </Button>
           </div>
         </div>
       </div>
@@ -476,7 +483,7 @@ export default function MedicalClassificationApp() {
                         {patient.currentAppointment && (
                           <div className="flex items-center gap-1 mt-1">
                             <CalendarIcon className="w-3 h-3" />
-                            <span>Next: {patient.currentAppointment}</span>
+                            <span>Next: {patient.currentAppointment?.split('T')[0]}</span>
                           </div>
                         )}
                       </div>
@@ -513,13 +520,13 @@ export default function MedicalClassificationApp() {
                             <Label htmlFor="patient-id" className="text-sm">
                               Patient ID
                             </Label>
-                            <Input
-                              id="patient-id"
-                              value={editPatientData.id}
-                              onChange={(e) => setEditPatientData((prev) => ({ ...prev, id: e.target.value }))}
-                              placeholder="Patient ID"
-                              className="h-auto p-2"
-                            />
+                          <Input
+                            id="patient-id"
+                            value={selectedPatient.id}
+                            className="h-auto p-2 bg-grey-50 text-grey-600"
+                            disabled
+                            readOnly
+                          />
                           </div>
                           <div>
                             <Label htmlFor="patient-name" className="text-sm">
@@ -648,7 +655,6 @@ export default function MedicalClassificationApp() {
                                 selected={newAppointmentDate}
                                 onSelect={setNewAppointmentDate}
                                 disabled={(date) => date < new Date()}
-                                initialFocus
                               />
                             </PopoverContent>
                           </Popover>
@@ -685,10 +691,9 @@ export default function MedicalClassificationApp() {
               </div>
 
               <Tabs defaultValue="scans" className="w-full">
-                <TabsList className="grid w-full grid-cols-3">
+                <TabsList className="grid w-full grid-cols-2">
                   <TabsTrigger value="scans">Medical Scans</TabsTrigger>
                   <TabsTrigger value="upload">Upload New Scan</TabsTrigger>
-                  <TabsTrigger value="stats">Statistics</TabsTrigger>
                 </TabsList>
 
                 <TabsContent value="scans" className="space-y-6">
@@ -779,106 +784,7 @@ export default function MedicalClassificationApp() {
                   </Card>
                 </TabsContent>
 
-                <TabsContent value="stats" className="space-y-6">
-                  <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
-                    <Card>
-                      <CardContent className="p-6">
-                        <div className="text-center">
-                          <div className="text-2xl font-bold text-blue-600">{calculateStats().totalPatients}</div>
-                          <p className="text-sm text-gray-600">Total Patients</p>
-                        </div>
-                      </CardContent>
-                    </Card>
 
-                    <Card>
-                      <CardContent className="p-6">
-                        <div className="text-center">
-                          <div className="text-2xl font-bold text-green-600">{calculateStats().totalDaysSaved}</div>
-                          <p className="text-sm text-gray-600">Days Saved</p>
-                        </div>
-                      </CardContent>
-                    </Card>
-
-                    <Card>
-                      <CardContent className="p-6">
-                        <div className="text-center">
-                          <div className="text-2xl font-bold text-purple-600">
-                            {calculateStats().assessmentAccuracy}%
-                          </div>
-                          <p className="text-sm text-gray-600">Assessment Accuracy</p>
-                        </div>
-                      </CardContent>
-                    </Card>
-
-                    <Card>
-                      <CardContent className="p-6">
-                        <div className="text-center">
-                          <div className="text-2xl font-bold text-orange-600">{calculateStats().totalAssessments}</div>
-                          <p className="text-sm text-gray-600">Total Assessments</p>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  </div>
-
-                  <Card>
-                    <CardHeader>
-                      <CardTitle>Detailed Statistics</CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="space-y-4">
-                        <div className="grid gap-4 md:grid-cols-2">
-                          <div>
-                            <h4 className="font-semibold mb-2">Assessment Breakdown</h4>
-                            <div className="space-y-2 text-sm">
-                              <div className="flex justify-between">
-                                <span>Confirmed Assessments:</span>
-                                <span className="font-medium text-green-600">
-                                  {calculateStats().correctAssessments}
-                                </span>
-                              </div>
-                              <div className="flex justify-between">
-                                <span>Corrected Assessments:</span>
-                                <span className="font-medium text-orange-600">
-                                  {calculateStats().totalAssessments - calculateStats().correctAssessments}
-                                </span>
-                              </div>
-                              <div className="flex justify-between">
-                                <span>Accuracy Rate:</span>
-                                <span className="font-medium">{calculateStats().assessmentAccuracy}%</span>
-                              </div>
-                            </div>
-                          </div>
-
-                          <div>
-                            <h4 className="font-semibold mb-2">Patient Overview</h4>
-                            <div className="space-y-2 text-sm">
-                              <div className="flex justify-between">
-                                <span>Total Patients:</span>
-                                <span className="font-medium">{calculateStats().totalPatients}</span>
-                              </div>
-                              <div className="flex justify-between">
-                                <span>Patients with Scans:</span>
-                                <span className="font-medium">{patients.filter((p) => p.scans.length > 0).length}</span>
-                              </div>
-                              <div className="flex justify-between">
-                                <span>Average Scans per Patient:</span>
-                                <span className="font-medium">
-                                  {calculateStats().totalPatients > 0
-                                    ? Math.round(
-                                        (patients.reduce((sum, p) => sum + p.scans.length, 0) /
-                                          calculateStats().totalPatients) *
-                                          10,
-                                      ) / 10
-                                    : 0}
-                                </span>
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                </TabsContent>
               </Tabs>
             </div>
           ) : (
@@ -958,6 +864,116 @@ export default function MedicalClassificationApp() {
             </CardContent>
           </Card>
         </div>
+      )}
+
+      {/* Statistics Modal */}
+      {showStatsModal && (
+        <Dialog open={showStatsModal} onOpenChange={setShowStatsModal}>
+          <DialogContent className="max-w-none !max-w-[70vw]">
+            <DialogHeader>
+              <DialogTitle>Statistics Dashboard</DialogTitle>
+              <DialogDescription>
+                Analysis and metrics
+              </DialogDescription>
+            </DialogHeader>
+            
+            <div className="space-y-10">
+              <div className="grid gap-5 grid-cols-3">
+                <Card>
+                  <CardContent className="p-6">
+                    <div className="text-center">
+                      <div className="text-2xl font-bold">{calculateStats().totalPatients}</div>
+                      <p className="text-sm text-gray-600">Total Patients</p>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                <Card>
+                  <CardContent className="p-6">
+                    <div className="text-center">
+                      <div className="text-2xl font-bold">
+                        {calculateStats().assessmentAccuracy}
+                      </div>
+                      <p className="text-sm text-gray-600">Assessment Accuracy (%)</p>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                <Card>
+                  <CardContent className="p-6">
+                    <div className="text-center">
+                      <div className="text-2xl font-bold">{calculateStats().totalAssessments}</div>
+                      <p className="text-sm text-gray-600">Total Assessments</p>
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle>Detailed Statistics</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-4">
+                    <div className="grid gap-4 md:grid-cols-2">
+                      <div>
+                        <h4 className="font-semibold mb-2">Assessment Breakdown</h4>
+                        <div className="space-y-2 text-sm">
+                          <div className="flex justify-between">
+                            <span>Confirmed Assessments:</span>
+                            <span className="font-medium">
+                              {calculateStats().correctAssessments}
+                            </span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span>Corrected Assessments:</span>
+                            <span className="font-medium">
+                              {calculateStats().totalAssessments - calculateStats().correctAssessments}
+                            </span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span> Accuracy Rate (%):</span>
+                            <span className="font-medium">{calculateStats().assessmentAccuracy}</span>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div>
+                        <h4 className="font-semibold mb-2">Patient Overview</h4>
+                        <div className="space-y-2 text-sm">
+                          <div className="flex justify-between">
+                            <span>Total Patients:</span>
+                            <span className="font-medium">{calculateStats().totalPatients}</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span>Patients with Scans:</span>
+                            <span className="font-medium">{patients.filter((p) => p.scans.length > 0).length}</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span>Average Scans per Patient:</span>
+                            <span className="font-medium">
+                              {calculateStats().totalPatients > 0
+                                ? Math.round(
+                                    (patients.reduce((sum, p) => sum + p.scans.length, 0) /
+                                      calculateStats().totalPatients) *
+                                      10
+                                  ) / 10
+                                : 0}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+            
+            <DialogFooter>
+              <Button onClick={() => setShowStatsModal(false)}>Close</Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       )}
 
       {/* Scan Details Modal */}

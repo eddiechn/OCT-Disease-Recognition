@@ -1,56 +1,113 @@
 # OCT Scan Disease Recognition
 
+![Python](https://img.shields.io/badge/python-v3.8+-blue.svg)
+![FastAPI](https://img.shields.io/badge/FastAPI-0.68.0+-green.svg)
+![Next.js](https://img.shields.io/badge/Next.js-12.0+-black.svg)
+![License](https://img.shields.io/badge/license-MIT-blue.svg)
 
----
+## 🚀 Project Overview
+Working as a healthcare technician, I saw firsthand how delays in diagnosis and overburdened providers could negatively impact patient outcomes. These challenges inspired me to combine my healthcare experience with technical skills to create a solution that improves diagnostic workflows.
 
-## 🚀 Project Idea
+Optical Coherence Tomography (OCT) is widely used in ophthalmology to visualize the retina and detect conditions such as:
 
-Working as a healthcare technician, I witnessed firsthand the challenges and inefficiencies in the healthcare system, particularly in diagnostic workflows. From delays in diagnosis to overburdened healthcare providers, I realized how these flaws could impact patient outcomes. This motivated me to explore how I could leverage my technical skills to contribute to improving healthcare.
+- Diabetic Macular Edema (DME)
+- Choroidal Neovascularization (CNV)
+- Drusen
+- Normal retinal states
 
-Optical Coherence Tomography (OCT) is a widely used imaging technique in ophthalmology to visualize the structure of the retina. Early detection of retinal conditions like Diabetic Macular Edema (DME), Choroidal Neovascularization (CNV), Drusen, and Normal retinal states can significantly improve treatment outcomes and patient care.
+This project automates OCT scan analysis using deep learning, providing healthcare professionals with quick, reliable predictions.
 
-This project automates the analysis of OCT scans using deep learning, aiming to:
+## ✨ Features
 
-- Classify retinal conditions like DME, CNV, Drusen, and Normal states.
-- Provide a reliable and quick second opinion for healthcare professionals, helping to reduce delays and enhance diagnostic accuracy.
-
-By combining my hands-on experience in healthcare with my technical expertise, this project represents a step toward bridging the gap between healthcare systems and innovative AI solutions to make tangible, impactful changes in patient care.
-
----
+- 📅 **Appointment Rescheduling** – Easily reschedule patient OCT appointments
+- 📤 **Scan Upload** – Securely upload OCT scans
+- ⚡ **Instant AI Prediction** – Classifies scans into DME, CNV, Drusen, or Normal
+- 🔄 **Weekly Model Retraining** – Automated retraining every 7 days using **Celery** + **Redis**
+- 📊 **Integrated Dashboard** – View predictions, patient scan history, and analytics
+- 👨‍⚕️ **Technician and Doctor Roles** - Only doctors are allowed to review scans
 
 ## 💻 Tech Stack
 
-- **Model Architecture**: Convolutional Neural Networks (CNN), InceptionV3  
-- **Data Source**: Kaggle ([Kermany2018 OCT Dataset](https://www.kaggle.com/datasets/paultimothymooney/kermany2018))  
+- **Model Architecture**: CNN (InceptionV3)
+- **Data Source**: [Kermany2018 OCT Dataset](https://www.kaggle.com/datasets/paultimothymooney/kermany2018)
+- **Backend**: FastAPI, Celery, Redis
+- **Frontend**: Next.js, TypeScript
 - **Database**: PostgreSQL
-- **Frontend**: NextJS, TypeScript
-- **Backend**: FastAPI
 
----
+## 📊 Performance Metrics
 
-## 📊 Metrics and Results
+| Class  | Precision | Recall | F1-Score | Data |
+|--------|-----------|--------|----------|------|
+| CNV    | 0.99      | 1.00   | 0.99     | 242  |
+| DME    | 0.99      | 1.00   | 0.99     | 242  |
+| Drusen | 1.00      | 0.99   | 0.99     | 242  |
+| Normal | 1.00      | 1.00   | 1.00     | 242  |
 
-The model achieved exceptional performance on the test dataset, demonstrating its effectiveness in classifying retinal conditions:
+**Macro Avg**: Precision 0.99 | Recall 0.99 | F1-Score 0.99  
+**Weighted Avg**: Precision 0.99 | Recall 0.99 | F1-Score 0.99
 
-- **Recall**: 0.99  
-- **Precision**: 0.99  
-- **AUC (Area Under the Curve)**: 1.00  
+## 🛠 Setup & Installation
 
-### Classification Report
+### 1️⃣ Clone the Repository
+```bash
+git clone https://github.com/yourusername/oct-scan-recognition.git
+cd oct-scan-recognition
+```
 
-| Class | Precision | Recall | F1-Score | Data |
-|-------|-----------|--------|----------|---------|
-| CNV    | 0.99      | 1.00   | 0.99     | 242     |
-| DME   | 0.99      | 1.00   | 0.99     | 242     |
-| DRUSEN    | 1.00      | 0.99   | 0.99     | 242     |
-| NORMAL    | 1.00      | 1.00   | 1.00     | 242     |
+### 2️⃣ Create a Virtual Environment
+```bash
+python -m venv venv
+source venv/bin/activate  # On Windows: venv\Scripts\activate
+```
 
-**Overall Performance**:
-- **Macro Average**: Precision 0.99, Recall 0.99, F1-Score 0.99  
-- **Weighted Average**: Precision 0.99, Recall 0.99, F1-Score 0.99  
+### 3️⃣ Install Dependencies
+```bash
+pip install -r requirements.txt
+```
 
-## Contact 
+### 4️⃣ Set Up Database
+```bash
+# Make sure PostgreSQL is running
+createdb oct_scans
+```
 
-You can contact me using my information below: 
+### 5️⃣ Configure Environment Variables
+Create a `.env` file in the project root:
+```ini
+DATABASE_URL=postgresql://user:password@localhost/oct_scans
+REDIS_URL=redis://localhost:6379
+```
 
-- Eddie Chen : eddiechn12@gmail.com
+### 6️⃣ Run Backend
+```bash
+uvicorn main:app --reload
+```
+
+### 7️⃣ Run Frontend
+```bash
+cd frontend
+npm install
+npm run dev
+```
+
+## 📂 Folder Structure
+```
+oct-scan-recognition/
+├── backend/        # FastAPI backend & ML inference
+├── frontend/       # Next.js frontend
+├── models/         # Trained model files
+├── data/          # Dataset storage
+├── scripts/       # Utility scripts (training, evaluation)
+└── README.md
+```
+
+## 📜 License
+This project is licensed under the MIT License.
+
+## 🙏 Acknowledgements
+- Kermany et al., 2018 for the OCT dataset
+- TensorFlow / Keras for the deep learning framework
+
+### Author
+Eddie Chen  
+📧 eddiechn12@gmail.com

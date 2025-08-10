@@ -13,6 +13,7 @@ import psycopg2
 from tensorflow.keras.applications.inception_v3 import InceptionV3
 from psycopg2.extras import RealDictCursor
 import uuid
+import tensorflow as tf
 
 app = FastAPI()
 
@@ -29,17 +30,12 @@ DATABASE_URL = os.environ.get('DATABASE_URL', 'postgresql://eddie:ed123456@local
 def get_db_connection():
     return psycopg2.connect(DATABASE_URL)
 
-model = InceptionV3(weights='imagenet', include_top=True)
-# model = tf.keras.models.load_model('./models/InceptionV3_tuning.keras') 
-
-
+model = tf.keras.models.load_model('../dummy_model.h5')
 
 # helper functions
 def preprocess_image(image):
-    image = image.convert('L')  
-    image = image.resize((299, 299))  # Resize image for the model
-    img_array = img_to_array(image)  # Convert image to array
-    img_array = img_array / 255.0  # Normalize the image
+    img = image.resize((299, 299))
+    img_array = img_to_array(img)
     img_array = np.expand_dims(img_array, axis=0)  # Add batch dimension
     return img_array
 
@@ -197,34 +193,45 @@ async def get_scans_by_patient(patient_id: str):
         cursor.close()
         conn.close()
 
+
 @app.post("/predict")
 async def predict(file: UploadFile = File(...)):
     try:
-        # Read the uploaded file
-        image = Image.open(io.BytesIO(await file.read()))
-        processed_image = preprocess_image(image)
-        prediction = model.predict(processed_image)
+        contents = await file.read()
+        image = Image.open(io.BytesIO(contents))
+
+        if image.mode != 'RGB':
+            image = image.convert('RGB')
+
+        # Create uploads directory if it doesn't exist
+        os.makedirs("uploads", exist_ok=True)
         
+        # Save the file with a unique name to avoid conflicts
+        filename = f"{uuid.uuid4()}_{file.filename}"
+        file_path = os.path.join("uploads", filename)
+
+        image.save(file_path)
+        
+        img_array = preprocess_image(image)
+        prediction = model.predict(img_array)
         predicted_class = np.argmax(prediction, axis=1)[0]
         predicted_probability = prediction[0][predicted_class]
         accuracy = round(float(predicted_probability) * 100, 2)
 
         class_labels = ['Choroidal Neovascularization', 'Diabetic Macular Edema', 'Drusen', 'Normal']
-        predicted_class_label = class_labels[predicted_class]
+        predicted_class = class_labels[predicted_class]
 
-        os.makedirs('uploads', exist_ok=True)
-        image_filename = f"uploads_{uuid.uuid4()}.jpg"
-        image_path = os.path.join('uploads', image_filename)
-        image.save(image_path)
-        
+        print(predicted_class)
+
         return {
-            'predicted_class': predicted_class_label,
-            'predicted_probability': accuracy/100,
-            'image_url': image_path
+            'predicted_class': str(predicted_class),
+            'predicted_probability': accuracy / 100,
+            'image_url': f"uploads/{file.filename}",
+            'upload_date': datetime.datetime.now().isoformat()
         }
-
     except Exception as e:
-        return {'error': str(e)}
+        raise HTTPException(status_code=500, detail=str(e))
+
     
 @app.post("/scans/{patient_id}", response_model=Scan)
 async def create_scan(patient_id: str, scan: ScanCreate):
@@ -232,10 +239,11 @@ async def create_scan(patient_id: str, scan: ScanCreate):
     cursor = conn.cursor(cursor_factory=RealDictCursor)
 
     try:
+        scan_id = str(uuid.uuid4())
         cursor.execute(
-            "INSERT INTO scans (patient_id, image_url, upload_date, prediction_condition, prediction_confidence) "
-            "VALUES (%s, %s, %s, %s, %s) RETURNING *",
-            (patient_id, scan.image_url, datetime.now(), scan.prediction_condition, scan.prediction_confidence)
+            "INSERT INTO scans (id, patient_id, image_url, upload_date, prediction_condition, prediction_confidence, doctor_notes) "
+            "VALUES (%s, %s, %s, %s, %s, %s, %s) RETURNING *",
+            (scan_id, patient_id, scan.image_url, datetime.datetime.now(), scan.prediction_condition, scan.prediction_confidence, scan.doctor_notes)
         )
         new_scan = cursor.fetchone()
         conn.commit()
@@ -270,6 +278,24 @@ async def update_scan(scan_id: str, scan: ScanCreate):
         cursor.close()
         conn.close()
 
+@app.delete("/scans/{scan_id}", response_model=Scan)
+async def delete_scan(scan_id: str):
+    conn = get_db_connection()
+    cursor = conn.cursor(cursor_factory=RealDictCursor)
+    try:
+        print(f"Deleting scan with ID: {scan_id}")  # Debug log
+        cursor.execute("DELETE FROM scans WHERE id = %s RETURNING *", (scan_id,))
+        deleted_scan = cursor.fetchone()
+        if not deleted_scan:
+            raise HTTPException(status_code=404, detail="Scan not found")
+        conn.commit()
+        return deleted_scan
+    except psycopg2.Error as e:
+        conn.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        cursor.close()
+        conn.close()
 
 @app.get("/test")
 def test():

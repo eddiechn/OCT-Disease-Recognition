@@ -143,33 +143,45 @@ export const scanAPI = {
   // Upload image, get prediction, and create scan in one operation
   async uploadAndCreateScan(patientId: string, file: File): Promise<UploadAndCreateScanResult> {
 
-    const Response = await fetch(`${API_BASE_URL}/scans/${patientId}`, {
+    const prediction = await this.predictImage(file)
+    console.log("Prediction result:", prediction)
+
+    const scanData: ScanCreate = {
+      patient_id: patientId,
+      image_url: prediction.image_url,
+      upload_date: prediction.upload_date || new Date().toISOString(),
+      prediction_condition: prediction.predicted_class,
+      prediction_confidence: prediction.predicted_probability,
+      doctor_notes: '',
+      doctor_confirmed: false,
+      doctor_corrected_diagnosis: '',
+      assessed_by: 'Unknown Doctor',
+      assessed_date: new Date().toISOString(),
+    }
+
+    const scan = await fetch(`${API_BASE_URL}/scans/${patientId}`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({ patient_id: patientId, file_name: file.name }),
-    })
+      body: JSON.stringify(scanData),
+    }).then((res => handleResponse<ScanResponse>(res)))
     // First, upload the image and get prediction
-    const prediction = await this.predictImage(file)
 
-    // Then create a scan with the prediction results
-    const scanData: ScanCreate = {
-      patient_id: patientId,
-      image_url: prediction.image_url,
-      upload_date: new Date().toISOString(),
-      prediction_condition: prediction.predicted_class,
-      prediction_confidence: prediction.predicted_probability,
-    }
-
-    const scan = await this.create(scanData)
-
-    // Return both the prediction and the created scan
+    
     return {
       prediction,
       scan,
     }
   },
+
+  async delete(id: string): Promise<ScanResponse> {
+    const response = await fetch(`${API_BASE_URL}/scans/${id}`, {
+      method: "DELETE",
+    })
+    return handleResponse<ScanResponse>(response)
+  },
+
 }
 
 // Data transformation utilities
@@ -186,10 +198,11 @@ export const dataTransformers = {
     }
   },
 
-  // Convert backend scan format to frontend format
   transformScan(backendScan: ScanResponse): Scan {
     return {
-      id: backendScan.id || String(Math.random()).slice(2), // Generate ID if not provided
+      id:
+        backendScan.id ||
+        `${backendScan.patient_id}_${backendScan.image_url}_${backendScan.upload_date}`.replace(/\W/g, ""),
       patientId: backendScan.patient_id,
       imageUrl: backendScan.image_url,
       uploadDate: backendScan.upload_date?.split("T")[0] || new Date().toISOString().split("T")[0],

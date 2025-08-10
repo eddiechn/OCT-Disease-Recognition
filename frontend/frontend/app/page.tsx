@@ -62,6 +62,8 @@ interface Patient {
 }
 
 
+// useState returns an array. first element is the state while second iterm is a function that updates that value
+
 export default function MedicalClassificationApp() {
   const [currentRole, setCurrentRole] = useState<"Doctor" | "Technician">("Technician")
   const [patients, setPatients] = useState<Patient[]>([])
@@ -104,7 +106,7 @@ export default function MedicalClassificationApp() {
         id: result.scan.id,
         patientId,
         imageUrl: result.prediction.image_url,
-        uploadDate: new Date().toISOString().split("T")[0],
+        uploadDate: result.prediction.upload_date || new Date().toISOString().split("T")[0],
         prediction: {
           condition: result.prediction.predicted_class,
           confidence: result.prediction.predicted_probability,
@@ -404,7 +406,7 @@ export default function MedicalClassificationApp() {
       {/* Header */}
       <div className="bg-white border-b px-6 py-4">
         <div className="flex items-center justify-between">
-          <h1 className="text-2xl font-bold text-gray-900">Medical Image Classification</h1>
+          <h1 className="text-2xl font-bold text-gray-900">Ophtalmology AI Platform</h1>
 
           <div className="flex items-center gap-4">
             <Label htmlFor="role-select">Current Role:</Label>
@@ -637,7 +639,7 @@ export default function MedicalClassificationApp() {
                         <div>
                           <Label className="text-sm font-medium">Current Appointment</Label>
                           <div className="mt-1 p-2 bg-gray-100 rounded text-sm">
-                            {selectedPatient.currentAppointment || "No appointment scheduled"}
+                            {selectedPatient.currentAppointment?.split('T')[0] || "No appointment scheduled"}
                           </div>
                         </div>
                         <div>
@@ -1004,6 +1006,10 @@ export default function MedicalClassificationApp() {
                         <span>Confidence:</span>
                         <span>{(selectedScan.prediction.confidence * 100).toFixed(1)}%</span>
                       </div>
+                      <div className="flex items-center justify-between">
+                        <span>Upload Date:</span>
+                        <span>{selectedScan.uploadDate}</span>
+                      </div>
                     </div>
                   </div>
 
@@ -1109,6 +1115,27 @@ export default function MedicalClassificationApp() {
                   }}
                 >
                   Close
+                </Button>
+                <Button
+                  variant="destructive"
+                  onClick={async () => {
+                    if (!selectedScan) return
+                    try {
+                      await scanAPI.delete(selectedScan.id)
+                      setPatients((prev) =>
+                        prev.map((patient) =>
+                          patient.id === selectedScan.patientId
+                            ? { ...patient, scans: patient.scans.filter((s) => s.id !== selectedScan.id) }
+                            : patient
+                        )
+                      )
+                      setSelectedScan(null)
+                    } catch (error) {
+                      alert("Failed to delete scan.")
+                    }
+                  }}
+                >
+                  Delete Scan
                 </Button>
               </div>
             </CardContent>

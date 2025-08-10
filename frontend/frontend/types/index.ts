@@ -65,9 +65,11 @@ export interface Scan {
 
 // Prediction types
 export interface PredictionResult {
+  scan_id: string
   predicted_class: string
   predicted_probability: number
   image_url: string
+  upload_date?: string
 }
 
 // API response types

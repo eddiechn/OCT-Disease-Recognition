@@ -26,6 +26,18 @@ This project automates OCT scan analysis using deep learning, providing healthca
 - 📊 **Integrated Dashboard** – View predictions, patient scan history, and analytics
 - 👨‍⚕️ **Technician and Doctor Roles** - Only doctors are allowed to review scans
 
+## 📸 Screenshots
+
+### Dashboard with patients and scans
+<img src="https://github.com/user-attachments/assets/47d29272-36de-4be0-b7ad-a39ae8875c31" alt="Dashboard with patients and scans" width="800">
+
+### Reschedule appointments
+<img src="https://github.com/user-attachments/assets/651cc6ec-91a1-4ff8-bd1c-4d376b69868f" alt="Reschedule appointments" width="800">
+
+| **Doctor role** | **Technician role** |
+|-----------------|---------------------|
+| <img src="https://github.com/user-attachments/assets/98be9a9c-6806-4ca1-a830-abeee2860def" alt="Doctor role" width="400"> | <img src="https://github.com/user-attachments/assets/19829eca-4aac-4c0e-b193-c85aa3b0f792" alt="Technician role" width="400"> |
+
 ## 💻 Tech Stack
 
 - **Model Architecture**: CNN (InceptionV3)
@@ -90,14 +102,36 @@ npm install
 npm run dev
 ```
 
+## 🔄 Running the Retraining Service
+
+### 1️⃣ Start Redis Server
+```bash
+# Start Redis (if not already running)
+brew services start redis
+
+# Verify Redis is running
+redis-cli ping
+# Should return "PONG"
+```
+
+### 2️⃣ Start Celery Workers
+```bash
+# Navigate to retraining directory
+cd OCT-Disease-Recognition/backend/retraining
+
+# Start Celery worker
+celery -A retraining.app worker --loglevel=INFO
+
+# In a new terminal, start Celery beat for scheduled tasks
+celery -A retraining.app beat --loglevel=INFO
+```
+
+
 ## 📂 Folder Structure
 ```
-oct-scan-recognition/
-├── backend/        # FastAPI backend & ML inference
+OCT-Disease-Recognition/
+├── backend/        # FastAPI backend and retraining
 ├── frontend/       # Next.js frontend
-├── models/         # Trained model files
-├── data/          # Dataset storage
-├── scripts/       # Utility scripts (training, evaluation)
 └── README.md
 ```
 
@@ -106,7 +140,6 @@ This project is licensed under the MIT License.
 
 ## 🙏 Acknowledgements
 - Kermany et al., 2018 for the OCT dataset
-- TensorFlow / Keras for the deep learning framework
 
 ### Author
 Eddie Chen  

@@ -1,9 +1,4 @@
-# OCT Scan Disease Recognition
-
-![Python](https://img.shields.io/badge/python-v3.8+-blue.svg)
-![FastAPI](https://img.shields.io/badge/FastAPI-0.68.0+-green.svg)
-![Next.js](https://img.shields.io/badge/Next.js-12.0+-black.svg)
-![License](https://img.shields.io/badge/license-MIT-blue.svg)
+# OCT Scan Disease Recognition 
 
 ## 🚀 Project Overview
 Working as a healthcare technician, I saw firsthand how delays in diagnosis and overburdened providers could negatively impact patient outcomes. These challenges inspired me to combine my healthcare experience with technical skills to create a solution that improves diagnostic workflows.
@@ -67,8 +62,6 @@ OCT-Disease-Recognition/
 └── README.md
 ```
 
-## 📜 License
-This project is licensed under the MIT License.
 
 ## 🙏 Acknowledgements
 - Kermany et al., 2018 for the OCT dataset

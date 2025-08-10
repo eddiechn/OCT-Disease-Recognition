@@ -20,14 +20,11 @@ By combining my hands-on experience in healthcare with my technical expertise, t
 
 ## 💻 Tech Stack
 
-
-- **Data Science**: Python
 - **Model Architecture**: Convolutional Neural Networks (CNN), InceptionV3  
 - **Data Source**: Kaggle ([Kermany2018 OCT Dataset](https://www.kaggle.com/datasets/paultimothymooney/kermany2018))  
-- **Database**: PostgreSQL for performance tracking and results storage  
-- **Deployment**: Docker: Containerization for reproducibility and scalability  
-- **Frontend**: React: Interactive UI for visualization and analysis  
-- **Backend**: Flask: REST API for model inference and integration  
+- **Database**: PostgreSQL
+- **Frontend**: NextJS, TypeScript
+- **Backend**: FastAPI
 
 ---
 

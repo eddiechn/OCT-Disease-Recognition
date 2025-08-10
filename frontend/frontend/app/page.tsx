@@ -82,6 +82,7 @@ export default function MedicalClassificationApp() {
   const [isEditingPatient, setIsEditingPatient] = useState(false)
   const [editPatientData, setEditPatientData] = useState({ id: "", name: "", age: "", gender: "" })
   const [showDeleteConfirm, setShowDeleteConfirm] = useState<string | null>(null)
+  const [showDeleteScanConfirm, setShowDeleteScanConfirm] = useState<string | null>(null)
   const [showAddPatientModal, setShowAddPatientModal] = useState(false)
   const [reschedulingHistory, setReschedulingHistory] = useState<
     Array<{ patientId: string; daysSaved: number; date: string }>
@@ -119,6 +120,13 @@ export default function MedicalClassificationApp() {
           patient.id === patientId ? { ...patient, scans: [...patient.scans, newScan] } : patient,
         ),
       )
+
+
+      // Update selectedPatient to include the new scan
+      setSelectedPatient((prev) =>
+        prev?.id === patientId ? { ...prev, scans: [...prev.scans, newScan] } : prev
+      )
+
 
       // Could show success message here
     } catch (error) {
@@ -1118,21 +1126,9 @@ export default function MedicalClassificationApp() {
                 </Button>
                 <Button
                   variant="destructive"
-                  onClick={async () => {
-                    if (!selectedScan) return
-                    try {
-                      await scanAPI.delete(selectedScan.id)
-                      setPatients((prev) =>
-                        prev.map((patient) =>
-                          patient.id === selectedScan.patientId
-                            ? { ...patient, scans: patient.scans.filter((s) => s.id !== selectedScan.id) }
-                            : patient
-                        )
-                      )
-                      setSelectedScan(null)
-                    } catch (error) {
-                      alert("Failed to delete scan.")
-                    }
+                  onClick={() => {
+                    if (!selectedScan) return;
+                    setShowDeleteScanConfirm(selectedScan.id);
                   }}
                 >
                   Delete Scan
@@ -1167,6 +1163,61 @@ export default function MedicalClassificationApp() {
           </Card>
         </div>
       )}
+      {/* Delete Scan Confirmation Modal */}
+      {showDeleteScanConfirm && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <Card className="max-w-md w-full">
+            <CardHeader>
+              <CardTitle>Delete Scan</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-gray-600 mb-4">
+                Are you sure you want to delete this scan? This action cannot be undone.
+              </p>
+              <div className="flex gap-2 justify-end">
+                <Button variant="outline" onClick={() => setShowDeleteScanConfirm(null)}>
+                  Cancel
+                </Button>
+                <Button 
+                  variant="destructive" 
+                  onClick={async () => {
+                    if (!showDeleteScanConfirm || !selectedScan) return;
+                    try {
+                      await scanAPI.delete(showDeleteScanConfirm);
+
+                      // Update local state
+                      setPatients((prev) =>
+                        prev.map((patient) =>
+                          patient.id === selectedScan.patientId
+                            ? { ...patient, scans: patient.scans.filter((s) => s.id !== showDeleteScanConfirm) }
+                            : patient
+                        )
+                      );
+
+
+                      // Update selectedPatient to reflect the change
+                      setSelectedPatient((prev) => 
+                        prev 
+                          ? { ...prev, scans: prev.scans.filter((s) => s.id !== showDeleteScanConfirm) }
+                          : null
+                      );
+                      setShowDeleteScanConfirm(null);
+                      setSelectedScan(null);
+                    } catch (error) {
+                      console.error("Failed to delete scan:", error);
+                      alert("Failed to delete scan.");
+                    }
+                  }}
+                >
+                  Delete Scan
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      
     </div>
   )
 }

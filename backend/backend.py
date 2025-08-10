@@ -56,6 +56,7 @@ class Patient(PatientBase):
         from_attributes = True
 
 class ScanBase(BaseModel):
+    id: str
     patient_id: str
     image_url: str
     upload_date: datetime.datetime
@@ -67,8 +68,17 @@ class ScanBase(BaseModel):
     assessed_by: Optional[str] = None
     assessed_date: Optional[datetime.datetime] = None
 
-class ScanCreate(ScanBase):
-    pass
+class ScanCreate(BaseModel):  # Separate create model without id
+    patient_id: str
+    image_url: str
+    upload_date: datetime.datetime
+    prediction_condition: str
+    prediction_confidence: float
+    doctor_notes: Optional[str] = None
+    doctor_confirmed: Optional[bool] = None
+    doctor_corrected_diagnosis: Optional[str] = None
+    assessed_by: Optional[str] = None
+    assessed_date: Optional[datetime.datetime] = None
 
 class Scan(ScanBase):
     class Config:
@@ -226,7 +236,7 @@ async def predict(file: UploadFile = File(...)):
         return {
             'predicted_class': str(predicted_class),
             'predicted_probability': accuracy / 100,
-            'image_url': f"uploads/{file.filename}",
+            'image_url': f"uploads/{filename}",
             'upload_date': datetime.datetime.now().isoformat()
         }
     except Exception as e:
@@ -241,9 +251,27 @@ async def create_scan(patient_id: str, scan: ScanCreate):
     try:
         scan_id = str(uuid.uuid4())
         cursor.execute(
-            "INSERT INTO scans (id, patient_id, image_url, upload_date, prediction_condition, prediction_confidence, doctor_notes) "
-            "VALUES (%s, %s, %s, %s, %s, %s, %s) RETURNING *",
-            (scan_id, patient_id, scan.image_url, datetime.datetime.now(), scan.prediction_condition, scan.prediction_confidence, scan.doctor_notes)
+            """
+            INSERT INTO scans 
+            (id, patient_id, image_url, upload_date, prediction_condition, 
+            prediction_confidence, doctor_notes, doctor_confirmed, 
+            doctor_corrected_diagnosis, assessed_by, assessed_date) 
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s) 
+            RETURNING *
+            """,
+            (
+                scan_id, 
+                patient_id, 
+                scan.image_url, 
+                scan.upload_date, 
+                scan.prediction_condition,
+                scan.prediction_confidence, 
+                scan.doctor_notes,
+                scan.doctor_confirmed,
+                scan.doctor_corrected_diagnosis,
+                scan.assessed_by,
+                scan.assessed_date
+            )
         )
         new_scan = cursor.fetchone()
         conn.commit()

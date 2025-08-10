@@ -142,36 +142,51 @@ export const scanAPI = {
 
   // Upload image, get prediction, and create scan in one operation
   async uploadAndCreateScan(patientId: string, file: File): Promise<UploadAndCreateScanResult> {
+    try {
+      console.log("Starting upload for patient:", patientId);
 
-    const prediction = await this.predictImage(file)
-    console.log("Prediction result:", prediction)
+      // First, upload the image and get prediction
+      console.log("Uploading image for prediction...");
+      const prediction = await this.predictImage(file);
+      console.log("Prediction received:", prediction);
 
-    const scanData: ScanCreate = {
-      patient_id: patientId,
-      image_url: prediction.image_url,
-      upload_date: prediction.upload_date || new Date().toISOString(),
-      prediction_condition: prediction.predicted_class,
-      prediction_confidence: prediction.predicted_probability,
-      doctor_notes: '',
-      doctor_confirmed: false,
-      doctor_corrected_diagnosis: '',
-      assessed_by: 'Unknown Doctor',
-      assessed_date: new Date().toISOString(),
-    }
+      // Prepare scan data
+      const scanData: ScanCreate = {
+        patient_id: patientId,
+        image_url: prediction.image_url,
+        upload_date: prediction.upload_date || new Date().toISOString(),
+        prediction_condition: prediction.predicted_class,
+        prediction_confidence: prediction.predicted_probability,
+        doctor_notes: '',
+        doctor_confirmed: false,
+        doctor_corrected_diagnosis: '',
+        assessed_by: 'Unknown Doctor',
+        assessed_date: new Date().toISOString(),
+      };
 
-    const scan = await fetch(`${API_BASE_URL}/scans/${patientId}`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(scanData),
-    }).then((res => handleResponse<ScanResponse>(res)))
-    // First, upload the image and get prediction
+      console.log("Creating scan with data:", scanData);
 
-    
-    return {
-      prediction,
-      scan,
+      // Create the scan
+      const scan = await fetch(`${API_BASE_URL}/scans/${patientId}`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(scanData),
+      }).then((res) => {
+        console.log("Scan creation response status:", res.status);
+        return handleResponse<ScanResponse>(res);
+      });
+
+      console.log("Scan created successfully:", scan);
+
+      return {
+        prediction,
+        scan,
+      };
+    } catch (error) {
+      console.error("Error in uploadAndCreateScan:", error);
+      throw error;
     }
   },
 

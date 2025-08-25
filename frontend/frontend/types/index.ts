@@ -15,6 +15,33 @@ export interface PatientWithScans extends PatientResponse {
   scans: ScanResponse[]
 }
 
+// Authentication types
+export interface UserBase {
+  username: string
+  email: string
+  role: 'doctor' | 'technician'
+}
+
+export interface UserCreate extends UserBase {
+  password: string
+}
+
+export interface UserLogin {
+  username: string
+  password: string
+}
+
+export interface User extends UserBase {
+  id: string
+  created_at: string
+}
+
+export interface Token {
+  access_token: string
+  token_type: string
+  user: User
+}
+
 // Scan types
 export interface ScanBase {
   patient_id: string

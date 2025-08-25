@@ -23,7 +23,10 @@ import {
   PlusCircle,
 } from "lucide-react"
 import { format } from "date-fns"
-import { scanAPI, patientAPI } from "../api/db"
+import { scanAPI, patientAPI, authAPI } from "../api/api"
+import { AuthContainer } from "../components/auth/AuthContainer"
+import { AppHeader } from "../components/layout/AppHeader"
+import { RoleGuard } from "../components/auth/RoleGuard"
 import {
   Dialog,
   DialogContent,
@@ -65,7 +68,51 @@ interface Patient {
 // useState returns an array. first element is the state while second iterm is a function that updates that value
 
 export default function MedicalClassificationApp() {
-  const [currentRole, setCurrentRole] = useState<"Doctor" | "Technician">("Technician")
+  const [isAuthenticated, setIsAuthenticated] = useState(false)
+  const [loading, setLoading] = useState(true)
+
+  // Check authentication status on mount
+  useEffect(() => {
+    const checkAuth = async () => {
+      if (authAPI.isAuthenticated()) {
+        try {
+          await authAPI.getCurrentUser()
+          setIsAuthenticated(true)
+        } catch (error) {
+          authAPI.logout()
+          setIsAuthenticated(false)
+        }
+      }
+      setLoading(false)
+    }
+    
+    checkAuth()
+  }, [])
+
+  const handleAuthSuccess = () => {
+    setIsAuthenticated(true)
+  }
+
+  const handleLogout = () => {
+    setIsAuthenticated(false)
+  }
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-lg">Loading...</div>
+      </div>
+    )
+  }
+
+  if (!isAuthenticated) {
+    return <AuthContainer onAuthSuccess={handleAuthSuccess} />
+  }
+
+  return <MainApp onLogout={handleLogout} />
+}
+
+function MainApp({ onLogout }: { onLogout: () => void }) {
   const [patients, setPatients] = useState<Patient[]>([])
   const [selectedPatient, setSelectedPatient] = useState<Patient | null>(null)
   const [selectedScan, setSelectedScan] = useState<Scan | null>(null)
@@ -412,40 +459,7 @@ export default function MedicalClassificationApp() {
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
-      <div className="bg-white border-b px-6 py-4">
-        <div className="flex items-center justify-between">
-          <h1 className="text-2xl font-bold text-gray-900">Ophtalmology AI Platform</h1>
-
-          <div className="flex items-center gap-4">
-            <Label htmlFor="role-select">Current Role:</Label>
-            <Select value={currentRole} onValueChange={(value: "Doctor" | "Technician") => setCurrentRole(value)}>
-              <SelectTrigger className="w-40">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="Technician">
-                  <div className="flex items-center gap-2">
-                    <User className="w-4 h-4" />
-                    Technician
-                  </div>
-                </SelectItem>
-                <SelectItem value="Doctor">
-                  <div className="flex items-center gap-2">
-                    <Stethoscope className="w-4 h-4" />
-                    Doctor
-                  </div>
-                </SelectItem>
-              </SelectContent>
-            </Select>
-            <Badge variant={currentRole === "Doctor" ? "default" : "secondary"} className="text-sm">
-              {currentRole === "Doctor" ? "Full Access" : "Upload & View Only"}
-            </Badge>
-            <Button variant="outline" onClick={() => setShowStatsModal(true)} size="sm">
-              Show Statistics
-            </Button>
-          </div>
-        </div>
-      </div>
+      <AppHeader onLogout={onLogout} />
 
       <div className="flex h-[calc(100vh-80px)]">
         {/* Left Sidebar - Patient List */}
@@ -1052,24 +1066,25 @@ export default function MedicalClassificationApp() {
                     </div>
                   )}
 
-                  {currentRole === "Doctor" && selectedScan.doctorAssessment && (
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => {
-                        setAssessmentNotes(selectedScan.doctorAssessment?.notes || "")
-                        setCorrectedDiagnosis(selectedScan.doctorAssessment?.correctedDiagnosis || "")
-                        setIsEditingAssessment(true)
-                      }}
-                      className="mt-2"
-                    >
-                      Edit Assessment
-                    </Button>
-                  )}
+                  <RoleGuard allowedRoles={["doctor"]}>
+                    {selectedScan.doctorAssessment && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          setAssessmentNotes(selectedScan.doctorAssessment?.notes || "")
+                          setCorrectedDiagnosis(selectedScan.doctorAssessment?.correctedDiagnosis || "")
+                          setIsEditingAssessment(true)
+                        }}
+                        className="mt-2"
+                      >
+                        Edit Assessment
+                      </Button>
+                    )}
 
-                  {currentRole === "Doctor" && (!selectedScan.doctorAssessment || isEditingAssessment) && (
-                    <div className="space-y-4">
-                      <h3 className="font-semibold">{isEditingAssessment ? "Edit Assessment" : "Add Assessment"}</h3>
+                    {(!selectedScan.doctorAssessment || isEditingAssessment) && (
+                      <div className="space-y-4">
+                        <h3 className="font-semibold">{isEditingAssessment ? "Edit Assessment" : "Add Assessment"}</h3>
                       <div className="space-y-3">
                         <div>
                           <Label htmlFor="corrected-diagnosis">Corrected Diagnosis (if needed)</Label>
@@ -1109,7 +1124,8 @@ export default function MedicalClassificationApp() {
                         </div>
                       </div>
                     </div>
-                  )}
+                    )}
+                  </RoleGuard>
                 </div>
               </div>
               <div className="flex gap-2">

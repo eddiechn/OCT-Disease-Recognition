@@ -9,10 +9,23 @@ import type {
   Patient,
   Scan,
   UploadAndCreateScanResult,
+  UserCreate,
+  UserLogin,
+  Token,
+  User,
 } from "../types"
 
 // Base URL for API requests - adjust this based on your deployment environment
 const API_BASE_URL = "http://localhost:8000"
+
+// Helper function to get auth headers
+function getAuthHeaders(): HeadersInit {
+  const token = localStorage.getItem('access_token')
+  return {
+    'Content-Type': 'application/json',
+    ...(token && { Authorization: `Bearer ${token}` })
+  }
+}
 
 // Helper function for handling API responses
 async function handleResponse<T>(response: Response): Promise<T> {
@@ -23,17 +36,79 @@ async function handleResponse<T>(response: Response): Promise<T> {
   return response.json() as Promise<T>
 }
 
+// Authentication API functions
+export const authAPI = {
+  // Register a new user
+  async register(userData: UserCreate): Promise<Token> {
+    const response = await fetch(`${API_BASE_URL}/register`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(userData),
+    })
+    const token = await handleResponse<Token>(response)
+    localStorage.setItem('access_token', token.access_token)
+    localStorage.setItem('user', JSON.stringify(token.user))
+    return token
+  },
+
+  // Login user
+  async login(credentials: UserLogin): Promise<Token> {
+    const response = await fetch(`${API_BASE_URL}/login`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(credentials),
+    })
+    const token = await handleResponse<Token>(response)
+    localStorage.setItem('access_token', token.access_token)
+    localStorage.setItem('user', JSON.stringify(token.user))
+    return token
+  },
+
+  // Get current user
+  async getCurrentUser(): Promise<User> {
+    const response = await fetch(`${API_BASE_URL}/users/me`, {
+      headers: getAuthHeaders(),
+    })
+    return handleResponse<User>(response)
+  },
+
+  // Logout
+  logout() {
+    localStorage.removeItem('access_token')
+    localStorage.removeItem('user')
+  },
+
+  // Check if user is authenticated
+  isAuthenticated(): boolean {
+    return !!localStorage.getItem('access_token')
+  },
+
+  // Get stored user
+  getStoredUser(): User | null {
+    const userStr = localStorage.getItem('user')
+    return userStr ? JSON.parse(userStr) : null
+  },
+}
+
 // Patient API functions
 export const patientAPI = {
   // Get all patients
   async getAll(): Promise<PatientResponse[]> {
-    const response = await fetch(`${API_BASE_URL}/patients`)
+    const response = await fetch(`${API_BASE_URL}/patients`, {
+      headers: getAuthHeaders(),
+    })
     return handleResponse<PatientResponse[]>(response)
   },
 
   // Get a specific patient by ID
   async getById(id: string): Promise<PatientResponse> {
-    const response = await fetch(`${API_BASE_URL}/patients/${id}`)
+    const response = await fetch(`${API_BASE_URL}/patients/${id}`, {
+      headers: getAuthHeaders(),
+    })
     return handleResponse<PatientResponse>(response)
   },
 
@@ -60,9 +135,7 @@ export const patientAPI = {
   async create(patientData: PatientCreate): Promise<PatientResponse> {
     const response = await fetch(`${API_BASE_URL}/patients`, {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
+      headers: getAuthHeaders(),
       body: JSON.stringify(patientData),
     })
     return handleResponse<PatientResponse>(response)
@@ -72,9 +145,7 @@ export const patientAPI = {
   async update(id: string, patientData: PatientCreate): Promise<PatientResponse> {
     const response = await fetch(`${API_BASE_URL}/patients/${id}`, {
       method: "PUT",
-      headers: {
-        "Content-Type": "application/json",
-      },
+      headers: getAuthHeaders(),
       body: JSON.stringify(patientData),
     })
     return handleResponse<PatientResponse>(response)
@@ -84,13 +155,16 @@ export const patientAPI = {
   async delete(id: string): Promise<PatientResponse> {
     const response = await fetch(`${API_BASE_URL}/patients/${id}`, {
       method: "DELETE",
+      headers: getAuthHeaders(),
     })
     return handleResponse<PatientResponse>(response)
   },
 
   // Get scans for a specific patient
   async getScansForPatient(patientId: string): Promise<ScanResponse[]> {
-    const response = await fetch(`${API_BASE_URL}/patients/${patientId}/scans`)
+    const response = await fetch(`${API_BASE_URL}/patients/${patientId}/scans`, {
+      headers: getAuthHeaders(),
+    })
     return handleResponse<ScanResponse[]>(response)
   },
 }
@@ -99,7 +173,9 @@ export const patientAPI = {
 export const scanAPI = {
   // Get all scans
   async getAll(): Promise<ScanResponse[]> {
-    const response = await fetch(`${API_BASE_URL}/scans`)
+    const response = await fetch(`${API_BASE_URL}/scans`, {
+      headers: getAuthHeaders(),
+    })
     return handleResponse<ScanResponse[]>(response)
   },
 
@@ -107,9 +183,7 @@ export const scanAPI = {
   async create(scanData: ScanCreate): Promise<ScanResponse> {
     const response = await fetch(`${API_BASE_URL}/scans`, {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
+      headers: getAuthHeaders(),
       body: JSON.stringify(scanData),
     })
     return handleResponse<ScanResponse>(response)
@@ -119,9 +193,7 @@ export const scanAPI = {
   async update(id: string, scanData: ScanCreate): Promise<ScanResponse> {
     const response = await fetch(`${API_BASE_URL}/scans/${id}`, {
       method: "PUT",
-      headers: {
-        "Content-Type": "application/json",
-      },
+      headers: getAuthHeaders(),
       body: JSON.stringify(scanData),
     })
     return handleResponse<ScanResponse>(response)
@@ -166,19 +238,15 @@ export const scanAPI = {
 
       console.log("Creating scan with data:", scanData);
 
-      // Create the scan
-      const scan = await fetch(`${API_BASE_URL}/scans/${patientId}`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(scanData),
-      }).then((res) => {
-        console.log("Scan creation response status:", res.status);
-        return handleResponse<ScanResponse>(res);
-      });
-
-      console.log("Scan created successfully:", scan);
+        // Create the scan
+        const scan = await fetch(`${API_BASE_URL}/scans/${patientId}`, {
+          method: "POST",
+          headers: getAuthHeaders(),
+          body: JSON.stringify(scanData),
+        }).then((res) => {
+          console.log("Scan creation response status:", res.status);
+          return handleResponse<ScanResponse>(res);
+        });      console.log("Scan created successfully:", scan);
 
       return {
         prediction,
@@ -193,6 +261,7 @@ export const scanAPI = {
   async delete(id: string): Promise<ScanResponse> {
     const response = await fetch(`${API_BASE_URL}/scans/${id}`, {
       method: "DELETE",
+      headers: getAuthHeaders(),
     })
     return handleResponse<ScanResponse>(response)
   },

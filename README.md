@@ -12,7 +12,7 @@ Optical Coherence Tomography (OCT) is widely used in ophthalmology to visualize 
 
 This project automates OCT scan analysis using deep learning, providing healthcare professionals with quick, reliable predictions.
 
-## ✨ Features
+## Features
 
 - **Appointment Rescheduling** – Easily reschedule patient OCT appointments
 - **Scan Upload** – Securely upload OCT scans

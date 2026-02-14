@@ -20,17 +20,20 @@ from datetime import datetime, timedelta
 import bcrypt
 from functools import wraps
 from dotenv import load_dotenv
+import requests
+import json
 
 load_dotenv()
 
 app = FastAPI()
 
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Allow all origins
+    allow_origins=["http://localhost:3000"],  # or your frontend origin
     allow_credentials=True,
-    allow_methods=["*"],  # Allow all methods
-    allow_headers=["*"],  # Allow all headers
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 DATABASE_URL = os.environ.get('DATABASE_URL', 'postgresql://eddie:ed123456@localhost:5432/oct_disease')
@@ -38,10 +41,50 @@ SECRET_KEY = os.environ.get('SECRET_KEY')
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 30
 
+# Backboard API Configuration
+BACKBOARD_API_KEY = os.environ.get('BACKBOARD_API_KEY')
+BACKBOARD_BASE_URL = "https://app.backboard.io/api"
+BACKBOARD_HEADERS = {"X-API-Key": BACKBOARD_API_KEY}
+
 security = HTTPBearer()
 
 def get_db_connection():
     return psycopg2.connect(DATABASE_URL)
+
+
+def _run_sql_file(path: str):
+    """Run SQL statements from a file against the configured database."""
+    if not os.path.isfile(path):
+        print(f"SQL file not found: {path}")
+        return
+
+    sql = open(path, "r").read()
+    conn = None
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        cursor.execute(sql)
+        conn.commit()
+        cursor.close()
+        print(f"Executed SQL file: {path}")
+    except Exception as e:
+        print(f"Failed to execute SQL file {path}: {e}")
+        if conn:
+            conn.rollback()
+    finally:
+        if conn:
+            conn.close()
+
+
+@app.on_event("startup")
+def ensure_chatbot_tables():
+    """Ensure chatbot-related tables exist by running migration SQL on startup."""
+    try:
+        base_dir = os.path.dirname(__file__)
+        sql_path = os.path.join(base_dir, "create_chatbot_tables.sql")
+        _run_sql_file(sql_path)
+    except Exception as e:
+        print(f"Error ensuring chatbot tables: {e}")
 
 model = tf.keras.models.load_model('../dummy_model.h5')
 
@@ -125,6 +168,136 @@ def require_role(allowed_roles: List[str]):
     return decorator
 
 
+# Backboard API helper functions
+def create_backboard_assistant(patient_data: Dict) -> str:
+    """Create a Backboard assistant for patient medical consultation."""
+    patient_info = f"""Patient Information:
+- Name: {patient_data.get('name', 'Unknown')}
+- Age: {patient_data.get('age', 'Unknown')}
+- Gender: {patient_data.get('gender', 'Unknown')}
+- Medical History: {patient_data.get('medical_history', 'Not available')}
+"""
+    
+    system_prompt = f"""You are a medical consultation chatbot assistant for OCT (Optical Coherence Tomography) disease diagnosis. 
+{patient_info}
+
+You have access to the patient's OCT scan records and diagnosis history. 
+
+Your responsibilities:
+- Provide information about the patient's OCT scans and diagnoses
+- Answer questions about their eye conditions (Choroidal Neovascularization, Diabetic Macular Edema, Drusen, or Normal)
+- Help track disease progression
+- Answer clinical questions about diagnosis and treatment
+- Remember important details about the patient across conversations
+- Flag any concerning symptoms or changes for doctor review
+
+Be professional, accurate, and always recommend human medical professional review for critical decisions.
+Conditions you should know about:
+1. Choroidal Neovascularization (CNV) - abnormal blood vessel growth
+2. Diabetic Macular Edema (DME) - swelling in the macula due to diabetes
+3. Drusen - yellow deposits under the retina
+4. Normal - no disease detected"""
+    
+    response = requests.post(
+        f"{BACKBOARD_BASE_URL}/assistants",
+        headers=BACKBOARD_HEADERS,
+        json={
+            "name": f"OCT Assistant - {patient_data.get('name', 'Patient')}",
+            "system_prompt": system_prompt,
+            "embedding_provider": "openai",
+            "embedding_model_name": "text-embedding-3-small",
+            "embedding_dims": 1536,
+            "memory": "Auto"
+        }
+    )
+    
+    if response.status_code != 200:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to create Backboard assistant: {response.text}"
+        )
+    
+    return response.json()["assistant_id"]
+
+def create_backboard_thread(assistant_id: str) -> str:
+    """Create a conversation thread with Backboard assistant."""
+    response = requests.post(
+        f"{BACKBOARD_BASE_URL}/assistants/{assistant_id}/threads",
+        headers=BACKBOARD_HEADERS,
+        json={}
+    )
+    
+    if response.status_code != 200:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to create conversation thread: {response.text}"
+        )
+    
+    return response.json()["thread_id"]
+
+def add_patient_memory(assistant_id: str, patient_id: str):
+    """Add patient scan history and diagnosis to assistant memory."""
+    conn = get_db_connection()
+    cursor = conn.cursor(cursor_factory=RealDictCursor)
+    
+    try:
+        # Get patient info
+        cursor.execute("SELECT * FROM patients WHERE id = %s", (patient_id,))
+        patient = cursor.fetchone()
+        
+        # Get patient scans
+        cursor.execute(
+            "SELECT * FROM scans WHERE patient_id = %s ORDER BY upload_date DESC LIMIT 10",
+            (patient_id,)
+        )
+        scans = cursor.fetchall()
+        
+        if patient and scans:
+            # Create memory content with patient history
+            memory_content = f"""Patient {patient['name']} ({patient['age']}yo {patient['gender']}):
+Recent scan history:
+"""
+            for scan in scans:
+                memory_content += f"- {scan['upload_date'].strftime('%Y-%m-%d')}: {scan['prediction_condition']} (confidence: {scan['prediction_confidence']*100:.1f}%)"
+                if scan['doctor_corrected_diagnosis']:
+                    memory_content += f" - Doctor corrected to: {scan['doctor_corrected_diagnosis']}"
+                memory_content += "\n"
+            
+            # Add memory to assistant
+            response = requests.post(
+                f"{BACKBOARD_BASE_URL}/assistants/{assistant_id}/memories",
+                headers=BACKBOARD_HEADERS,
+                json={"content": memory_content}
+            )
+            
+            if response.status_code != 200:
+                print(f"Warning: Could not add memory to assistant: {response.text}")
+    
+    finally:
+        cursor.close()
+        conn.close()
+
+def send_backboard_message(thread_id: str, message_content: str) -> str:
+    """Send a message to Backboard and get response."""
+    response = requests.post(
+        f"{BACKBOARD_BASE_URL}/threads/{thread_id}/messages",
+        headers=BACKBOARD_HEADERS,
+        data={
+            "content": message_content,
+            "stream": "false",
+            "memory": "Auto"
+        }
+    )
+    
+    if response.status_code != 200:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to send message: {response.text}"
+        )
+    
+    return response.json()["content"]
+
+
 # Authentication models
 class UserBase(BaseModel):
     username: str
@@ -194,6 +367,28 @@ class Scan(ScanBase):
     class Config:
         arbitrary_types_allowed = True
         from_attributes = True
+
+
+# Chatbot models
+class ChatMessage(BaseModel):
+    content: str
+    role: str  # 'user' or 'assistant'
+    created_at: Optional[datetime] = None
+
+class ChatThread(BaseModel):
+    id: str
+    assistant_id: str
+    patient_id: Optional[str] = None
+    user_id: str
+    created_at: datetime
+    updated_at: datetime
+    class Config:
+        arbitrary_types_allowed = True
+        from_attributes = True
+
+class ChatResponse(BaseModel):
+    message: ChatMessage
+    thread_id: str
 
 
 # Authentication endpoints
@@ -280,6 +475,202 @@ async def login(user_credentials: UserLogin):
 async def read_users_me(current_user: dict = Depends(get_current_user)):
     """Get current user profile."""
     return current_user
+
+
+# Chatbot endpoints
+@app.post("/chat/threads/{patient_id}", response_model=ChatThread)
+async def start_chat_thread(patient_id: str, current_user: dict = Depends(get_current_user)):
+    """Start a new chat session for a patient."""
+    conn = get_db_connection()
+    cursor = conn.cursor(cursor_factory=RealDictCursor)
+    
+    try:
+        # Get patient info
+        cursor.execute("SELECT * FROM patients WHERE id = %s", (patient_id,))
+        patient = cursor.fetchone()
+        if not patient:
+            raise HTTPException(status_code=404, detail="Patient not found")
+        
+        # Check if assistant exists for this patient, if not create one
+        cursor.execute("SELECT backboard_assistant_id FROM chat_assistants WHERE patient_id = %s", (patient_id,))
+        assistant_result = cursor.fetchone()
+        
+        if assistant_result:
+            assistant_id = assistant_result["backboard_assistant_id"]
+        else:
+            # Create new assistant for this patient
+            assistant_id = create_backboard_assistant(patient)
+            
+            # Save assistant to database
+            cursor.execute(
+                "INSERT INTO chat_assistants (patient_id, backboard_assistant_id) VALUES (%s, %s) RETURNING *",
+                (patient_id, assistant_id)
+            )
+            conn.commit()
+            
+            # Add patient scan history to memory
+            add_patient_memory(assistant_id, patient_id)
+        
+        # Create new thread
+        thread_id = create_backboard_thread(assistant_id)
+        
+        # Save thread to database
+        chat_thread_id = str(uuid.uuid4())
+        cursor.execute(
+            """INSERT INTO chat_threads 
+               (id, assistant_id, backboard_thread_id, patient_id, user_id, created_at, updated_at)
+               VALUES (%s, %s, %s, %s, %s, %s, %s)
+               RETURNING *""",
+            (chat_thread_id, assistant_id, thread_id, patient_id, current_user["id"], datetime.utcnow(), datetime.utcnow())
+        )
+        new_thread = cursor.fetchone()
+        conn.commit()
+        
+        return new_thread
+    except psycopg2.Error as e:
+        conn.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        cursor.close()
+        conn.close()
+
+@app.get("/chat/threads/{thread_id}")
+async def get_chat_thread(thread_id: str, current_user: dict = Depends(get_current_user)):
+    """Get a chat thread with all messages."""
+    conn = get_db_connection()
+    cursor = conn.cursor(cursor_factory=RealDictCursor)
+    
+    try:
+        # Get thread
+        cursor.execute(
+            "SELECT * FROM chat_threads WHERE id = %s AND user_id = %s",
+            (thread_id, current_user["id"])
+        )
+        thread = cursor.fetchone()
+        if not thread:
+            raise HTTPException(status_code=404, detail="Thread not found")
+        
+        # Get messages
+        cursor.execute(
+            "SELECT * FROM chat_messages WHERE thread_id = %s ORDER BY created_at ASC",
+            (thread_id,)
+        )
+        messages = cursor.fetchall()
+        
+        return {
+            "thread": thread,
+            "messages": messages
+        }
+    finally:
+        cursor.close()
+        conn.close()
+
+@app.post("/chat/threads/{thread_id}/messages", response_model=ChatResponse)
+async def send_chat_message(thread_id: str, message_content: str = Body(..., embed=True), current_user: dict = Depends(get_current_user)):
+    """Send a message to the chatbot."""
+    conn = get_db_connection()
+    cursor = conn.cursor(cursor_factory=RealDictCursor)
+    
+    try:
+        # Get thread
+        cursor.execute(
+            "SELECT * FROM chat_threads WHERE id = %s AND user_id = %s",
+            (thread_id, current_user["id"])
+        )
+        thread = cursor.fetchone()
+        if not thread:
+            raise HTTPException(status_code=404, detail="Thread not found")
+        
+        # Save user message
+        user_msg_id = str(uuid.uuid4())
+        cursor.execute(
+            "INSERT INTO chat_messages (id, thread_id, content, role, created_at) VALUES (%s, %s, %s, %s, %s)",
+            (user_msg_id, thread_id, message_content, "user", datetime.utcnow())
+        )
+        conn.commit()
+        
+        # Send to Backboard
+        assistant_response = send_backboard_message(thread["backboard_thread_id"], message_content)
+        
+        # Save assistant response
+        assistant_msg_id = str(uuid.uuid4())
+        cursor.execute(
+            "INSERT INTO chat_messages (id, thread_id, content, role, created_at) VALUES (%s, %s, %s, %s, %s)",
+            (assistant_msg_id, thread_id, assistant_response, "assistant", datetime.utcnow())
+        )
+        
+        # Update thread updated_at
+        cursor.execute(
+            "UPDATE chat_threads SET updated_at = %s WHERE id = %s",
+            (datetime.utcnow(), thread_id)
+        )
+        conn.commit()
+        
+        return {
+            "message": {
+                "content": assistant_response,
+                "role": "assistant",
+                "created_at": datetime.utcnow()
+            },
+            "thread_id": thread_id
+        }
+    except psycopg2.Error as e:
+        conn.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        cursor.close()
+        conn.close()
+
+@app.get("/chat/patient/{patient_id}/threads")
+async def get_patient_chat_threads(patient_id: str, current_user: dict = Depends(get_current_user)):
+    """Get all chat threads for a patient (by current user)."""
+    conn = get_db_connection()
+    cursor = conn.cursor(cursor_factory=RealDictCursor)
+    
+    try:
+        cursor.execute(
+            """SELECT * FROM chat_threads 
+               WHERE patient_id = %s AND user_id = %s
+               ORDER BY updated_at DESC""",
+            (patient_id, current_user["id"])
+        )
+        threads = cursor.fetchall()
+        return threads
+    finally:
+        cursor.close()
+        conn.close()
+
+@app.delete("/chat/threads/{thread_id}")
+async def delete_chat_thread(thread_id: str, current_user: dict = Depends(get_current_user)):
+    """Delete a chat thread."""
+    conn = get_db_connection()
+    cursor = conn.cursor(cursor_factory=RealDictCursor)
+    
+    try:
+        # Verify ownership
+        cursor.execute(
+            "SELECT * FROM chat_threads WHERE id = %s AND user_id = %s",
+            (thread_id, current_user["id"])
+        )
+        thread = cursor.fetchone()
+        if not thread:
+            raise HTTPException(status_code=404, detail="Thread not found")
+        
+        # Delete messages first (cascade should handle this, but being explicit)
+        cursor.execute("DELETE FROM chat_messages WHERE thread_id = %s", (thread_id,))
+        
+        # Delete thread
+        cursor.execute("DELETE FROM chat_threads WHERE id = %s RETURNING *", (thread_id,))
+        deleted_thread = cursor.fetchone()
+        conn.commit()
+        
+        return deleted_thread
+    except psycopg2.Error as e:
+        conn.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        cursor.close()
+        conn.close()
 
 # api routes
 @app.get("/patients", response_model=List[Patient])

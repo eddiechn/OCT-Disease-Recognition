@@ -27,6 +27,7 @@ import { scanAPI, patientAPI, authAPI } from "../api/api"
 import { AuthContainer } from "../components/auth/AuthContainer"
 import { AppHeader } from "../components/layout/AppHeader"
 import { RoleGuard } from "../components/auth/RoleGuard"
+import { ChatWidget } from "@/components/chat"
 import {
   Dialog,
   DialogContent,
@@ -1232,8 +1233,12 @@ function MainApp({ onLogout }: { onLogout: () => void }) {
           </Card>
         </div>
       )}
+      )}
 
-      
+      {/* Chat widget for selected patient */}
+      {selectedPatient && (
+        <ChatWidget patientId={selectedPatient.id} patientName={selectedPatient.name} />
+      )}
     </div>
   )
 }
